@@ -232,6 +232,27 @@ const MODEL_MAPPING_PREVIEW_FALLBACK: Array<{
   target: string
 }> = [{ source: 'client-model', target: 'upstream-model' }]
 
+const CODEX_CLI_HEADER_OVERRIDE_PRESET: Record<string, string> = {
+  'User-Agent': 'codex-cli/0.142.5',
+  'X-Client-Name': 'codex-cli',
+  'X-Stainless-Lang': 'node',
+  'X-Stainless-Package-Version': '0.142.5',
+  'X-Stainless-Runtime': 'node',
+  'X-Stainless-OS': 'Windows',
+  'X-Stainless-Arch': 'x64',
+}
+
+const CLAUDE_CODE_HEADER_OVERRIDE_PRESET: Record<string, string> = {
+  'User-Agent': 'claude-code/2.1.197',
+  'X-Client-Name': 'claude-code',
+  'anthropic-version': '2023-06-01',
+  'X-Stainless-Lang': 'js',
+  'X-Stainless-Package-Version': '2.1.197',
+  'X-Stainless-Runtime': 'node',
+  'X-Stainless-OS': 'Windows',
+  'X-Stainless-Arch': 'x64',
+}
+
 const ADVANCED_SETTINGS_EXPANDED_KEY = 'channel-advanced-settings-expanded'
 const CHANNEL_EDITOR_SECTION_IDS = {
   identity: 'channel-section-identity',
@@ -314,6 +335,34 @@ function hasConfiguredOverrideValue(value: unknown): boolean {
   }
 
   return true
+}
+
+function mergeHeaderOverridePreset(
+  currentValue: string | undefined,
+  preset: Record<string, string>
+): string {
+  const trimmed = currentValue?.trim()
+  let current: Record<string, unknown> = {}
+
+  if (trimmed) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        current = parsed as Record<string, unknown>
+      }
+    } catch {
+      current = {}
+    }
+  }
+
+  return JSON.stringify(
+    {
+      ...current,
+      ...preset,
+    },
+    null,
+    2
+  )
 }
 
 function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
@@ -3800,6 +3849,36 @@ export function ChannelMutateDrawer({
                                         </FormDescription>
                                       </div>
                                       <div className='flex flex-wrap gap-2'>
+                                        <Button
+                                          type='button'
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() =>
+                                            field.onChange(
+                                              mergeHeaderOverridePreset(
+                                                field.value,
+                                                CODEX_CLI_HEADER_OVERRIDE_PRESET
+                                              )
+                                            )
+                                          }
+                                        >
+                                          Codex CLI
+                                        </Button>
+                                        <Button
+                                          type='button'
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={() =>
+                                            field.onChange(
+                                              mergeHeaderOverridePreset(
+                                                field.value,
+                                                CLAUDE_CODE_HEADER_OVERRIDE_PRESET
+                                              )
+                                            )
+                                          }
+                                        >
+                                          Claude Code
+                                        </Button>
                                         <Button
                                           type='button'
                                           variant='outline'
