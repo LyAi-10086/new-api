@@ -22,6 +22,13 @@ import type {
   ConfirmPaymentComplianceResponse,
   FetchUpstreamRatiosRequest,
   LogCleanupTask,
+  SensitiveEnabledGroupsResponse,
+  SensitiveEnabledModelsResponse,
+  SensitiveSettings,
+  SensitiveSettingsResponse,
+  SensitiveViolationFilters,
+  SensitiveViolationResponse,
+  SensitiveViolationsResponse,
   SystemOptionsResponse,
   SystemTaskListResponse,
   SystemTaskResponse,
@@ -102,6 +109,54 @@ export async function fetchUpstreamRatios(request: FetchUpstreamRatiosRequest) {
   const res = await api.post<UpstreamRatiosResponse>(
     '/api/ratio_sync/fetch',
     request
+  )
+  return res.data
+}
+
+export async function getSensitiveSettings() {
+  const res = await api.get<SensitiveSettingsResponse>(
+    '/api/sensitive/settings'
+  )
+  return res.data
+}
+
+export async function updateSensitiveSettings(request: SensitiveSettings) {
+  const res = await api.put<UpdateOptionResponse>(
+    '/api/sensitive/settings',
+    request
+  )
+  return res.data
+}
+
+export async function getSensitiveEnabledModels() {
+  const res = await api.get<SensitiveEnabledModelsResponse>(
+    '/api/sensitive/enabled_models'
+  )
+  return res.data
+}
+
+export async function getSensitiveEnabledGroups() {
+  const res = await api.get<SensitiveEnabledGroupsResponse>(
+    '/api/sensitive/enabled_groups'
+  )
+  return res.data
+}
+
+export async function getSensitiveViolations(
+  filters: SensitiveViolationFilters
+) {
+  const res = await api.get<SensitiveViolationsResponse>(
+    '/api/sensitive/violations',
+    {
+      params: filters,
+    }
+  )
+  return res.data
+}
+
+export async function getSensitiveViolation(id: number) {
+  const res = await api.get<SensitiveViolationResponse>(
+    `/api/sensitive/violations/${id}`
   )
   return res.data
 }

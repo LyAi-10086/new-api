@@ -73,7 +73,13 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
         {
           title: t('Security & Limits'),
           icon: ShieldAlert,
-          items: getSecuritySectionNavItems(t),
+          items: [
+            {
+              title: t('Sensitive Risk Control'),
+              url: '/system-settings/sensitive-risk',
+            },
+            ...getSecuritySectionNavItems(t),
+          ],
         },
         {
           title: t('Console Content'),

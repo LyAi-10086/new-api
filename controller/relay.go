@@ -123,7 +123,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		return
 	}
 
-	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
+	usingGroup := relayInfo.UsingGroup
+	if autoGroup, exists := common.GetContextKey(c, constant.ContextKeyAutoGroup); exists {
+		// auto 分组在前置选渠道时会落到实际分组，敏感词风控必须按这个最终分组判断。
+		if groupName, ok := autoGroup.(string); ok && groupName != "" {
+			usingGroup = groupName
+			relayInfo.UsingGroup = groupName
+		}
+	}
+	needSensitiveCheck := setting.ShouldCheckPromptSensitiveForScope(relayInfo.OriginModelName, usingGroup)
 	needCountToken := constant.CountToken
 	// Avoid building huge CombineText (strings.Join) when token counting and sensitive check are both disabled.
 	var meta *types.TokenCountMeta
@@ -136,8 +144,20 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	if needSensitiveCheck && meta != nil {
 		contains, words := service.CheckSensitiveText(meta.CombineText)
 		if contains {
-			logger.LogWarn(c, fmt.Sprintf("user sensitive words detected: %s", strings.Join(words, ", ")))
-			newAPIError = types.NewError(err, types.ErrorCodeSensitiveWordsDetected)
+			violation, recordErr := service.RecordSensitiveViolationAndApplyPolicy(c, relayInfo, words, meta.CombineText)
+			if recordErr != nil {
+				if violation != nil {
+					logger.LogError(c, fmt.Sprintf("sensitive violation policy error: violation_id=%d user=%d token=%d model=%s error=%s", violation.Id, relayInfo.UserId, relayInfo.TokenId, relayInfo.OriginModelName, recordErr.Error()))
+				} else {
+					logger.LogError(c, fmt.Sprintf("failed to record sensitive violation: user=%d token=%d model=%s error=%s", relayInfo.UserId, relayInfo.TokenId, relayInfo.OriginModelName, recordErr.Error()))
+				}
+			}
+			if violation != nil {
+				logger.LogWarn(c, fmt.Sprintf("sensitive words detected: violation_id=%d user=%d token=%d model=%s count=%d", violation.Id, relayInfo.UserId, relayInfo.TokenId, relayInfo.OriginModelName, len(words)))
+			} else {
+				logger.LogWarn(c, fmt.Sprintf("sensitive words detected: user=%d token=%d model=%s count=%d", relayInfo.UserId, relayInfo.TokenId, relayInfo.OriginModelName, len(words)))
+			}
+			newAPIError = types.NewError(errors.New("sensitive words detected"), types.ErrorCodeSensitiveWordsDetected)
 			return
 		}
 	}

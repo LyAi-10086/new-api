@@ -444,3 +444,91 @@ export type UpstreamRatiosResponse = {
     test_results: TestResult[]
   }
 }
+
+export type SensitiveModelScopeMode = 'all' | 'include' | 'exclude'
+
+export type SensitiveModelScope = {
+  mode: SensitiveModelScopeMode
+  models: string[]
+  group_mode: SensitiveModelScopeMode
+  groups: string[]
+}
+
+export type SensitiveViolationPolicy = {
+  user_enabled: boolean
+  user_threshold: number
+  token_enabled: boolean
+  token_threshold: number
+}
+
+export type SensitiveSettings = {
+  check_sensitive_enabled: boolean
+  check_sensitive_on_prompt_enabled: boolean
+  sensitive_words: string
+  model_scope: SensitiveModelScope
+  violation_policy: SensitiveViolationPolicy
+}
+
+export type SensitiveSettingsResponse = {
+  success: boolean
+  message: string
+  data: SensitiveSettings
+}
+
+export type SensitiveEnabledModelsResponse = {
+  success: boolean
+  message: string
+  data: string[]
+}
+
+export type SensitiveEnabledGroupsResponse = {
+  success: boolean
+  message: string
+  data: string[]
+}
+
+export type SensitiveViolation = {
+  id: number
+  user_id: number
+  token_id: number
+  model_name: string
+  group_name: string
+  matched_words: string
+  content?: string
+  content_preview: string
+  request_path: string
+  request_id: string
+  ip: string
+  action_result: string
+  created_at: number
+}
+
+export type SensitiveViolationFilters = {
+  user_id?: string
+  token_id?: string
+  model_name?: string
+  group_name?: string
+  start_time?: string
+  end_time?: string
+  p?: number
+  page_size?: number
+}
+
+export type SensitiveViolationsPage = {
+  page: number
+  page_size: number
+  total: number
+  items: SensitiveViolation[]
+}
+
+export type SensitiveViolationsResponse = {
+  success: boolean
+  message: string
+  data: SensitiveViolationsPage
+}
+
+export type SensitiveViolationResponse = {
+  success: boolean
+  message: string
+  data: SensitiveViolation
+}

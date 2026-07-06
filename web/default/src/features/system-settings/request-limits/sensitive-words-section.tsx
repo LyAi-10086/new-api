@@ -17,11 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate } from '@tanstack/react-router'
+import { ShieldAlert } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import * as z from 'zod'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -59,6 +63,7 @@ export function SensitiveWordsSection({
   defaultValues,
 }: SensitiveWordsSectionProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const updateOption = useUpdateOption()
   const form = useForm<SensitiveFormValues>({
     resolver: zodResolver(sensitiveSchema),
@@ -89,6 +94,25 @@ export function SensitiveWordsSection({
             isSaving={updateOption.isPending}
             saveLabel='Save sensitive words'
           />
+          <Alert>
+            <ShieldAlert />
+            <AlertTitle>{t('Legacy sensitive words page')}</AlertTitle>
+            <AlertDescription className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+              <span>
+                {t(
+                  'This page is the legacy sensitive words configuration entry and will no longer be expanded. Go to Sensitive Risk Control to configure model scope, violation records, and automatic disposition.'
+                )}
+              </span>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => navigate({ to: '/system-settings/sensitive-risk' })}
+              >
+                {t('Go to Sensitive Risk Control')}
+              </Button>
+            </AlertDescription>
+          </Alert>
           <div className='space-y-4'>
             <FormField
               control={form.control}

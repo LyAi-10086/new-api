@@ -198,6 +198,17 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/waffo-pancake/subscription-product-options", controller.ListWaffoPancakeSubscriptionProductOptions)
 		}
 
+		sensitiveRoute := apiRouter.Group("/sensitive")
+		sensitiveRoute.Use(middleware.RootAuth())
+		{
+			sensitiveRoute.GET("/settings", controller.GetSensitiveSettings)
+			sensitiveRoute.PUT("/settings", controller.UpdateSensitiveSettings)
+			sensitiveRoute.GET("/enabled_models", controller.GetSensitiveEnabledModels)
+			sensitiveRoute.GET("/enabled_groups", controller.GetSensitiveEnabledGroups)
+			sensitiveRoute.GET("/violations", controller.GetSensitiveViolations)
+			sensitiveRoute.GET("/violations/:id", controller.GetSensitiveViolation)
+		}
+
 		// Custom OAuth provider management (root only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")
 		customOAuthRoute.Use(middleware.RootAuth())
