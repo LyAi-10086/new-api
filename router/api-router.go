@@ -232,6 +232,15 @@ func SetApiRouter(router *gin.Engine) {
 			channelAlertRoute.POST("/test", middleware.CriticalRateLimit(), controller.TestChannelAlertEmail)
 		}
 
+		dataStatisticsRoute := apiRouter.Group("/data-statistics")
+		dataStatisticsRoute.Use(middleware.RootAuth())
+		{
+			dataStatisticsRoute.GET("/summary", controller.GetAdminDataStatisticsSummary)
+			dataStatisticsRoute.GET("/trends", controller.GetAdminDataStatisticsTrends)
+			dataStatisticsRoute.GET("/rankings", controller.GetAdminDataStatisticsRankings)
+			dataStatisticsRoute.GET("/filters", controller.GetAdminDataStatisticsFilters)
+		}
+
 		// Custom OAuth provider management (root only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")
 		customOAuthRoute.Use(middleware.RootAuth())

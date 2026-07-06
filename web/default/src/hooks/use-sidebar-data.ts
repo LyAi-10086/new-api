@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
+  BarChart3,
   Box,
   CreditCard,
   FileText,
@@ -149,6 +150,12 @@ export function useSidebarData(): SidebarData {
             title: t('Subscriptions'),
             url: '/subscriptions',
             icon: CreditCard,
+          },
+          {
+            title: t('Data Statistics'),
+            url: '/data-statistics',
+            icon: BarChart3,
+            requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('System Info'),
