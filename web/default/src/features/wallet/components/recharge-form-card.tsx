@@ -70,7 +70,7 @@ interface RechargeFormCardProps {
   topupLink?: string
   loading?: boolean
   priceRatio?: number
-  usdExchangeRate?: number
+  currencySymbol?: string
   onOpenBilling?: () => void
   creemProducts?: CreemProduct[]
   enableCreemTopup?: boolean
@@ -100,7 +100,7 @@ export function RechargeFormCard({
   topupLink,
   loading,
   priceRatio = 1,
-  usdExchangeRate = 1,
+  currencySymbol = '',
   onOpenBilling,
   creemProducts,
   enableCreemTopup,
@@ -233,8 +233,7 @@ export function RechargeFormCard({
                       } = calculatePresetPricing(
                         preset.value,
                         priceRatio,
-                        discount,
-                        usdExchangeRate
+                        discount
                       )
                       return (
                         <Button
@@ -259,11 +258,22 @@ export function RechargeFormCard({
                             )}
                           </div>
                           <div className='text-muted-foreground mt-1.5 w-full text-xs sm:mt-2'>
-                            Pay {formatCurrency(actualPrice)}
+                            {t('Pay {{amount}}', {
+                              amount: formatCurrency(
+                                actualPrice,
+                                currencySymbol
+                              ),
+                            })}
                             {hasDiscount && savedAmount > 0 && (
                               <span className='text-green-600'>
                                 {' '}
-                                • Save {formatCurrency(savedAmount)}
+                                •{' '}
+                                {t('Save {{amount}}', {
+                                  amount: formatCurrency(
+                                    savedAmount,
+                                    currencySymbol
+                                  ),
+                                })}
                               </span>
                             )}
                           </div>
@@ -299,7 +309,7 @@ export function RechargeFormCard({
                       <Skeleton className='h-5 w-16' />
                     ) : (
                       <span className='text-sm font-semibold'>
-                        {formatCurrency(paymentAmount)}
+                        {formatCurrency(paymentAmount, currencySymbol)}
                       </span>
                     )}
                   </div>

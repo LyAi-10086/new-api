@@ -20,6 +20,12 @@ import { api } from '@/lib/api'
 
 import type {
   ConfirmPaymentComplianceResponse,
+  AffiliateCommissionFilters,
+  AffiliateCommissionResponse,
+  AffiliateCommissionsResponse,
+  AffiliateSettleResponse,
+  AffiliateSettings,
+  AffiliateSettingsResponse,
   FetchUpstreamRatiosRequest,
   LogCleanupTask,
   SensitiveEnabledGroupsResponse,
@@ -157,6 +163,51 @@ export async function getSensitiveViolations(
 export async function getSensitiveViolation(id: number) {
   const res = await api.get<SensitiveViolationResponse>(
     `/api/sensitive/violations/${id}`
+  )
+  return res.data
+}
+
+export async function getAffiliateSettings() {
+  const res = await api.get<AffiliateSettingsResponse>(
+    '/api/affiliate/settings'
+  )
+  return res.data
+}
+
+export async function updateAffiliateSettings(request: AffiliateSettings) {
+  const res = await api.put<UpdateOptionResponse>(
+    '/api/affiliate/settings',
+    request
+  )
+  return res.data
+}
+
+export async function getAffiliateCommissions(
+  filters: AffiliateCommissionFilters
+) {
+  const res = await api.get<AffiliateCommissionsResponse>(
+    '/api/affiliate/commissions',
+    {
+      params: filters,
+    }
+  )
+  return res.data
+}
+
+export async function getAffiliateCommission(id: number) {
+  const res = await api.get<AffiliateCommissionResponse>(
+    `/api/affiliate/commissions/${id}`
+  )
+  return res.data
+}
+
+export async function settleAffiliateCommissions(inviterId?: string) {
+  const res = await api.post<AffiliateSettleResponse>(
+    '/api/affiliate/settle',
+    null,
+    {
+      params: inviterId ? { inviter_id: inviterId } : undefined,
+    }
   )
   return res.data
 }

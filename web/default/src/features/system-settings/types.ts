@@ -532,3 +532,96 @@ export type SensitiveViolationResponse = {
   message: string
   data: SensitiveViolation
 }
+
+export type AffiliateRechargePolicy = {
+  enabled: boolean
+  attribution_days: number
+  settlement_days: number
+  include_manual_topup: boolean
+  min_topup_money: number
+  first_topup_rate_within_7_days: number
+  repeat_topup_rate_within_7_days: number
+  first_topup_rate_within_30_days: number
+  repeat_topup_rate_within_30_days: number
+  first_topup_rate_after_30_days: number
+  repeat_topup_rate_after_30_days: number
+}
+
+export type AffiliateSettings = {
+  recharge_policy: AffiliateRechargePolicy
+}
+
+export type AffiliateSettingsResponse = {
+  success: boolean
+  message: string
+  data: AffiliateSettings
+}
+
+export type AffiliateCommission = {
+  id: number
+  reward_key: string
+  inviter_id: number
+  invitee_id: number
+  topup_id: number
+  trade_no: string
+  payment_provider: string
+  payment_method: string
+  topup_money: number
+  topup_quota: number
+  invite_age_days: number
+  is_first_topup: boolean
+  base_rate: number
+  final_rate: number
+  reward_quota: number
+  transferred_quota: number
+  status: 'pending' | 'available' | 'transferred' | 'voided'
+  eligible_at: number
+  settled_at: number
+  transferred_at: number
+  void_reason: string
+  created_at: number
+  updated_at: number
+}
+
+export type AffiliateCommissionFilters = {
+  inviter_id?: string
+  invitee_id?: string
+  topup_id?: string
+  trade_no?: string
+  status?: string
+  start_time?: string
+  end_time?: string
+  p?: number
+  page_size?: number
+}
+
+export type AffiliateCommissionsPage = {
+  page: number
+  page_size: number
+  total: number
+  items: AffiliateCommission[]
+}
+
+export type AffiliateCommissionsResponse = {
+  success: boolean
+  message: string
+  data: AffiliateCommissionsPage
+}
+
+export type AffiliateCommissionResponse = {
+  success: boolean
+  message: string
+  data: AffiliateCommission
+}
+
+export type AffiliateSettleResult = {
+  settled_count: number
+  settled_quota: number
+  voided_count: number
+}
+
+export type AffiliateSettleResponse = {
+  success: boolean
+  message: string
+  data: AffiliateSettleResult
+}

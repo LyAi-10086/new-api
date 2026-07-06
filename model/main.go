@@ -300,6 +300,7 @@ func migrateDB() error {
 		&CasbinRule{},
 		&AuthzRole{},
 		&SensitiveViolation{},
+		&AffiliateCommission{},
 	)
 	if err != nil {
 		return err
@@ -353,6 +354,7 @@ func migrateDBFast() error {
 		{&SystemTask{}, "SystemTask"},
 		{&SystemTaskLock{}, "SystemTaskLock"},
 		{&SensitiveViolation{}, "SensitiveViolation"},
+		{&AffiliateCommission{}, "AffiliateCommission"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))

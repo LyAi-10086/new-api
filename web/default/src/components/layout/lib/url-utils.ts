@@ -106,7 +106,14 @@ export function checkIsActive(
   // If both URLs have the same base path
   if (hrefWithoutQuery === itemUrlWithoutQuery) {
     // If item.url has no query params, pathname match is enough (current URL may have query params)
-    if (!itemUrlHasQuery) return true
+    if (!itemUrlHasQuery) {
+      // `view` 查询参数表示同一路径下的独立视图，不能让基础入口也保持选中。
+      // 例如邀请好友使用 /wallet?view=referrals，钱包入口仍应只在 /wallet 激活。
+      if (new URLSearchParams(href.split('?')[1] ?? '').has('view')) {
+        return false
+      }
+      return true
+    }
     // If item.url has query params, they must match exactly
     if (itemUrlHasQuery && href === itemUrl) return true
   }

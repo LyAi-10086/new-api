@@ -16,6 +16,40 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import dayjs from 'dayjs'
+import { RefreshCcw, RotateCcw, Save, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { formatQuota } from '@/lib/format'
 import { parseCurrencyDisplayType } from '@/lib/currency'
 
 import { CheckinSettingsSection } from '../general/checkin-settings-section'
@@ -23,8 +57,19 @@ import { PricingSection } from '../general/pricing-section'
 import { QuotaSettingsSection } from '../general/quota-settings-section'
 import { PaymentSettingsSection } from '../integrations/payment-settings-section'
 import { RatioSettingsCard } from '../models/ratio-settings-card'
-import type { BillingSettings } from '../types'
+import type {
+  AffiliateCommission,
+  AffiliateCommissionFilters,
+  AffiliateRechargePolicy,
+  BillingSettings,
+} from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import {
+  getAffiliateCommissions,
+  getAffiliateSettings,
+  settleAffiliateCommissions,
+  updateAffiliateSettings,
+} from '../api'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -188,6 +233,11 @@ const BILLING_SECTIONS = [
     ),
   },
   {
+    id: 'affiliate-commission',
+    titleKey: 'Referral Commission',
+    build: () => <AffiliateCommissionSection />,
+  },
+  {
     id: 'checkin',
     titleKey: 'Check-in Rewards',
     build: (settings: BillingSettings) => (
@@ -219,3 +269,549 @@ export const BILLING_DEFAULT_SECTION = billingRegistry.defaultSection
 export const getBillingSectionNavItems = billingRegistry.getSectionNavItems
 export const getBillingSectionContent = billingRegistry.getSectionContent
 export const getBillingSectionMeta = billingRegistry.getSectionMeta
+
+const defaultPolicy: AffiliateRechargePolicy = {
+  enabled: false,
+  attribution_days: 30,
+  settlement_days: 7,
+  include_manual_topup: true,
+  min_topup_money: 0,
+  first_topup_rate_within_7_days: 0.1,
+  repeat_topup_rate_within_7_days: 0.05,
+  first_topup_rate_within_30_days: 0.06,
+  repeat_topup_rate_within_30_days: 0.03,
+  first_topup_rate_after_30_days: 0,
+  repeat_topup_rate_after_30_days: 0,
+}
+
+type CommissionFilterDraft = {
+  inviter_id: string
+  invitee_id: string
+  topup_id: string
+  trade_no: string
+  status: string
+}
+
+const emptyFilterDraft: CommissionFilterDraft = {
+  inviter_id: '',
+  invitee_id: '',
+  topup_id: '',
+  trade_no: '',
+  status: 'all',
+}
+
+function numberValue(value: string, fallback: number) {
+  if (value.trim() === '') return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function formatDate(timestamp: number) {
+  return timestamp > 0 ? dayjs.unix(timestamp).format('YYYY-MM-DD HH:mm') : '-'
+}
+
+function formatRate(rate: number) {
+  return `${(rate * 100).toFixed(2)}%`
+}
+
+function commissionStatusLabel(status: AffiliateCommission['status']) {
+  switch (status) {
+    case 'pending':
+      return 'Pending'
+    case 'available':
+      return 'Available'
+    case 'transferred':
+      return 'Transferred'
+    case 'voided':
+      return 'Voided'
+    default:
+      return status
+  }
+}
+
+export function AffiliateCommissionSection() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [policy, setPolicy] = useState<AffiliateRechargePolicy>(defaultPolicy)
+  const [filters, setFilters] = useState<CommissionFilterDraft>(emptyFilterDraft)
+  const [appliedFilters, setAppliedFilters] =
+    useState<CommissionFilterDraft>(emptyFilterDraft)
+  const [page, setPage] = useState(1)
+
+  const settingsQuery = useQuery({
+    queryKey: ['affiliate-settings'],
+    queryFn: getAffiliateSettings,
+  })
+
+  useEffect(() => {
+    const nextPolicy = settingsQuery.data?.data?.recharge_policy
+    if (nextPolicy) {
+      setPolicy({
+        ...defaultPolicy,
+        ...nextPolicy,
+      })
+    }
+  }, [settingsQuery.data])
+
+  const queryFilters = useMemo<AffiliateCommissionFilters>(
+    () => ({
+      inviter_id: appliedFilters.inviter_id || undefined,
+      invitee_id: appliedFilters.invitee_id || undefined,
+      topup_id: appliedFilters.topup_id || undefined,
+      trade_no: appliedFilters.trade_no || undefined,
+      status:
+        appliedFilters.status && appliedFilters.status !== 'all'
+          ? appliedFilters.status
+          : undefined,
+      p: page,
+      page_size: 20,
+    }),
+    [appliedFilters, page]
+  )
+
+  const commissionsQuery = useQuery({
+    queryKey: ['affiliate-commissions', queryFilters],
+    queryFn: () => getAffiliateCommissions(queryFilters),
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: () => updateAffiliateSettings({ recharge_policy: policy }),
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success(t('Referral commission policy saved'))
+        queryClient.invalidateQueries({ queryKey: ['affiliate-settings'] })
+      } else {
+        toast.error(res.message || t('Save failed'))
+      }
+    },
+    onError: () => toast.error(t('Save failed')),
+  })
+
+  const settleMutation = useMutation({
+    mutationFn: () =>
+      settleAffiliateCommissions(appliedFilters.inviter_id || undefined),
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success(
+          t('Settled {{count}} commissions, quota {{quota}}', {
+            count: res.data?.settled_count ?? 0,
+            quota: formatQuota(res.data?.settled_quota ?? 0),
+          })
+        )
+        queryClient.invalidateQueries({ queryKey: ['affiliate-commissions'] })
+      } else {
+        toast.error(res.message || t('Settlement failed'))
+      }
+    },
+    onError: () => toast.error(t('Settlement failed')),
+  })
+
+  const updatePolicy = <K extends keyof AffiliateRechargePolicy>(
+    key: K,
+    value: AffiliateRechargePolicy[K]
+  ) => {
+    setPolicy((current) => ({ ...current, [key]: value }))
+  }
+
+  const pageData = commissionsQuery.data?.data
+  const totalPages = Math.max(1, Math.ceil((pageData?.total ?? 0) / 20))
+
+  return (
+    <div className='flex flex-col gap-4'>
+      <Card data-card-hover='false'>
+        <CardHeader>
+          <CardTitle>{t('Recharge Commission Policy')}</CardTitle>
+          <CardDescription>
+            {t(
+              'Reward inviters after invited users complete successful top-ups.'
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-5'>
+          <div className='flex items-center justify-between gap-3 rounded-lg border p-3'>
+            <div>
+              <Label>{t('Enable recharge commission')}</Label>
+              <p className='text-muted-foreground mt-1 text-xs'>
+                {t('Disabled by default. Existing registration rewards remain unchanged.')}
+              </p>
+            </div>
+            <Switch
+              checked={policy.enabled}
+              onCheckedChange={(checked) => updatePolicy('enabled', checked)}
+            />
+          </div>
+
+          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+            <PolicyNumberInput
+              label={t('Attribution days')}
+              value={policy.attribution_days}
+              min={1}
+              step={1}
+              onChange={(value) =>
+                updatePolicy('attribution_days', Math.max(1, Math.floor(value)))
+              }
+            />
+            <PolicyNumberInput
+              label={t('Settlement days')}
+              value={policy.settlement_days}
+              min={0}
+              step={1}
+              onChange={(value) =>
+                updatePolicy('settlement_days', Math.max(0, Math.floor(value)))
+              }
+            />
+            <PolicyNumberInput
+              label={t('Minimum top-up amount')}
+              value={policy.min_topup_money}
+              min={0}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('min_topup_money', Math.max(0, value))
+              }
+            />
+            <div className='flex items-center justify-between gap-3 rounded-lg border p-3'>
+              <div>
+                <Label>{t('Include manual top-ups')}</Label>
+                <p className='text-muted-foreground mt-1 text-xs'>
+                  {t('Manual admin top-ups can generate commissions.')}
+                </p>
+              </div>
+              <Switch
+                checked={policy.include_manual_topup}
+                onCheckedChange={(checked) =>
+                  updatePolicy('include_manual_topup', checked)
+                }
+              />
+            </div>
+          </div>
+
+          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            <PolicyNumberInput
+              label={t('First top-up rate within 7 days')}
+              value={policy.first_topup_rate_within_7_days}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('first_topup_rate_within_7_days', value)
+              }
+            />
+            <PolicyNumberInput
+              label={t('Repeat top-up rate within 7 days')}
+              value={policy.repeat_topup_rate_within_7_days}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('repeat_topup_rate_within_7_days', value)
+              }
+            />
+            <PolicyNumberInput
+              label={t('First top-up rate from day 8 to 30')}
+              value={policy.first_topup_rate_within_30_days}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('first_topup_rate_within_30_days', value)
+              }
+            />
+            <PolicyNumberInput
+              label={t('Repeat top-up rate from day 8 to 30')}
+              value={policy.repeat_topup_rate_within_30_days}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('repeat_topup_rate_within_30_days', value)
+              }
+            />
+            <PolicyNumberInput
+              label={t('First top-up rate after 30 days')}
+              value={policy.first_topup_rate_after_30_days}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('first_topup_rate_after_30_days', value)
+              }
+            />
+            <PolicyNumberInput
+              label={t('Repeat top-up rate after 30 days')}
+              value={policy.repeat_topup_rate_after_30_days}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) =>
+                updatePolicy('repeat_topup_rate_after_30_days', value)
+              }
+            />
+          </div>
+          <p className='text-muted-foreground text-xs'>
+            {t(
+              'Rates after 30 days apply from day 31 until the attribution window. Set 0 to disable long-tail commission.'
+            )}
+          </p>
+
+          <div className='flex flex-wrap justify-end gap-2'>
+            <Button
+              variant='outline'
+              onClick={() => settingsQuery.refetch()}
+              disabled={settingsQuery.isFetching}
+            >
+              <RefreshCcw className='size-4' />
+              {t('Refresh')}
+            </Button>
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+            >
+              <Save className='size-4' />
+              {t('Save Policy')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card data-card-hover='false'>
+        <CardHeader>
+          <CardTitle>{t('Commission Records')}</CardTitle>
+          <CardDescription>
+            {t('Review commission attribution, settlement and transfer status.')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='grid gap-2 md:grid-cols-5'>
+            <Input
+              placeholder={t('Inviter ID')}
+              value={filters.inviter_id}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  inviter_id: event.target.value,
+                }))
+              }
+            />
+            <Input
+              placeholder={t('Invitee ID')}
+              value={filters.invitee_id}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  invitee_id: event.target.value,
+                }))
+              }
+            />
+            <Input
+              placeholder={t('Top-up ID')}
+              value={filters.topup_id}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  topup_id: event.target.value,
+                }))
+              }
+            />
+            <Input
+              placeholder={t('Trade No')}
+              value={filters.trade_no}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  trade_no: event.target.value,
+                }))
+              }
+            />
+            <Select
+              value={filters.status}
+              onValueChange={(value) =>
+                setFilters((current) => ({ ...current, status: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t('Status')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>{t('All Statuses')}</SelectItem>
+                <SelectItem value='pending'>{t('Pending')}</SelectItem>
+                <SelectItem value='available'>{t('Available')}</SelectItem>
+                <SelectItem value='transferred'>{t('Transferred')}</SelectItem>
+                <SelectItem value='voided'>{t('Voided')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className='flex flex-wrap justify-between gap-2'>
+            <div className='flex gap-2'>
+              <Button
+                variant='outline'
+                onClick={() => {
+                  setAppliedFilters(filters)
+                  setPage(1)
+                }}
+              >
+                <Search className='size-4' />
+                {t('Filter')}
+              </Button>
+              <Button
+                variant='ghost'
+                onClick={() => {
+                  setFilters(emptyFilterDraft)
+                  setAppliedFilters(emptyFilterDraft)
+                  setPage(1)
+                }}
+              >
+                <RotateCcw className='size-4' />
+                {t('Reset')}
+              </Button>
+            </div>
+            <Button
+              variant='secondary'
+              onClick={() => settleMutation.mutate()}
+              disabled={settleMutation.isPending}
+            >
+              <RefreshCcw className='size-4' />
+              {t('Settle Due Commissions')}
+            </Button>
+          </div>
+
+          <div className='overflow-hidden rounded-lg border'>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('Record ID')}</TableHead>
+                  <TableHead>{t('Inviter ID')}</TableHead>
+                  <TableHead>{t('Invitee ID')}</TableHead>
+                  <TableHead>{t('Trade No')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Reward Amount')}</TableHead>
+                  <TableHead>{t('Rate')}</TableHead>
+                  <TableHead>{t('Top-up Money')}</TableHead>
+                  <TableHead>{t('Created At')}</TableHead>
+                  <TableHead>{t('Eligible At')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {commissionsQuery.isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className='h-24 text-center'>
+                      {t('Loading commission records...')}
+                    </TableCell>
+                  </TableRow>
+                ) : pageData?.items?.length ? (
+                  pageData.items.map((commission) => (
+                    <TableRow key={commission.id}>
+                      <TableCell>{commission.id}</TableCell>
+                      <TableCell>{commission.inviter_id || '-'}</TableCell>
+                      <TableCell>{commission.invitee_id || '-'}</TableCell>
+                      <TableCell className='max-w-40 truncate font-mono text-xs'>
+                        {commission.trade_no || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {t(commissionStatusLabel(commission.status))}
+                      </TableCell>
+                      <TableCell>{formatQuota(commission.reward_quota)}</TableCell>
+                      <TableCell>{formatRate(commission.final_rate)}</TableCell>
+                      <TableCell>{commission.topup_money.toFixed(2)}</TableCell>
+                      <TableCell>{formatDate(commission.created_at)}</TableCell>
+                      <TableCell>{formatDate(commission.eligible_at)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={10} className='h-24 text-center'>
+                      {t('No commission records found')}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className='flex items-center justify-between text-sm'>
+            <span className='text-muted-foreground'>
+              {t('Total records: {{total}}', { total: pageData?.total ?? 0 })}
+            </span>
+            <div className='flex items-center gap-2'>
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                {t('Previous')}
+              </Button>
+              <span className='text-muted-foreground text-xs'>
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={page >= totalPages}
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+              >
+                {t('Next')}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function PolicyNumberInput({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max?: number
+  step: number
+  onChange: (value: number) => void
+}) {
+  const [draftValue, setDraftValue] = useState(String(value))
+
+  useEffect(() => {
+    setDraftValue(String(value))
+  }, [value])
+
+  const normalizeValue = () => {
+    const next = numberValue(draftValue, value)
+    const clamped =
+      max === undefined ? Math.max(min, next) : Math.min(max, Math.max(min, next))
+    setDraftValue(String(clamped))
+    onChange(clamped)
+  }
+
+  return (
+    <div className='space-y-2'>
+      <Label>{label}</Label>
+      <Input
+        type='text'
+        inputMode={step < 1 ? 'decimal' : 'numeric'}
+        value={draftValue}
+        onChange={(event) => {
+          const next = event.target.value.trim()
+          if (/^\d*(?:\.\d*)?$/.test(next)) {
+            setDraftValue(next)
+          }
+        }}
+        onBlur={normalizeValue}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            normalizeValue()
+            event.currentTarget.blur()
+          }
+        }}
+      />
+    </div>
+  )
+}

@@ -470,6 +470,12 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 	user.AffQuota -= quota
 	user.Quota += quota
 
+	// 返佣 v1 复用现有 aff_quota 转余额入口，这里只同步专表的已转出数量，
+	// 旧版邀请注册奖励没有专表记录，仍按原有余额逻辑转出。
+	if err := ConsumeAffiliateAvailableCommissionsTx(tx, user.Id, quota); err != nil {
+		return err
+	}
+
 	// 保存用户状态
 	if err := tx.Save(user).Error; err != nil {
 		return err

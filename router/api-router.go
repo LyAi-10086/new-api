@@ -106,6 +106,9 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/waffo-pancake/amount", controller.RequestWaffoPancakeAmount)
 				selfRoute.POST("/waffo-pancake/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPancakePay)
 				selfRoute.POST("/aff_transfer", controller.TransferAffQuota)
+				selfRoute.GET("/affiliate/summary", controller.GetSelfAffiliateSummary)
+				selfRoute.GET("/affiliate/commissions", controller.GetSelfAffiliateCommissions)
+				selfRoute.GET("/affiliate/referrals", controller.GetSelfAffiliateReferrals)
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
 
 				// 2FA routes
@@ -207,6 +210,16 @@ func SetApiRouter(router *gin.Engine) {
 			sensitiveRoute.GET("/enabled_groups", controller.GetSensitiveEnabledGroups)
 			sensitiveRoute.GET("/violations", controller.GetSensitiveViolations)
 			sensitiveRoute.GET("/violations/:id", controller.GetSensitiveViolation)
+		}
+
+		affiliateRoute := apiRouter.Group("/affiliate")
+		affiliateRoute.Use(middleware.RootAuth())
+		{
+			affiliateRoute.GET("/settings", controller.GetAffiliateSettings)
+			affiliateRoute.PUT("/settings", controller.UpdateAffiliateSettings)
+			affiliateRoute.GET("/commissions", controller.GetAffiliateCommissions)
+			affiliateRoute.GET("/commissions/:id", controller.GetAffiliateCommission)
+			affiliateRoute.POST("/settle", controller.SettleAffiliateCommissions)
 		}
 
 		// Custom OAuth provider management (root only)

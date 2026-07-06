@@ -211,3 +211,85 @@ func ShouldCheckPromptSensitiveForScope(originModelName string, usingGroup strin
 //func ShouldCheckCompletionSensitive() bool {
 //	return CheckSensitiveEnabled && CheckSensitiveOnCompletionEnabled
 //}
+
+const AffiliateRechargePolicyOptionKey = "AffiliateRechargePolicy"
+
+type AffiliateRechargePolicyConfig struct {
+	Enabled                     bool    `json:"enabled"`
+	AttributionDays             int     `json:"attribution_days"`
+	SettlementDays              int     `json:"settlement_days"`
+	IncludeManualTopup          bool    `json:"include_manual_topup"`
+	MinTopupMoney               float64 `json:"min_topup_money"`
+	FirstTopupRateWithin7Days   float64 `json:"first_topup_rate_within_7_days"`
+	RepeatTopupRateWithin7Days  float64 `json:"repeat_topup_rate_within_7_days"`
+	FirstTopupRateWithin30Days  float64 `json:"first_topup_rate_within_30_days"`
+	RepeatTopupRateWithin30Days float64 `json:"repeat_topup_rate_within_30_days"`
+	FirstTopupRateAfter30Days   float64 `json:"first_topup_rate_after_30_days"`
+	RepeatTopupRateAfter30Days  float64 `json:"repeat_topup_rate_after_30_days"`
+}
+
+var AffiliateRechargePolicy = DefaultAffiliateRechargePolicy()
+
+func DefaultAffiliateRechargePolicy() AffiliateRechargePolicyConfig {
+	return AffiliateRechargePolicyConfig{
+		Enabled:                     false,
+		AttributionDays:             30,
+		SettlementDays:              7,
+		IncludeManualTopup:          true,
+		MinTopupMoney:               0,
+		FirstTopupRateWithin7Days:   0.10,
+		RepeatTopupRateWithin7Days:  0.05,
+		FirstTopupRateWithin30Days:  0.06,
+		RepeatTopupRateWithin30Days: 0.03,
+		FirstTopupRateAfter30Days:   0,
+		RepeatTopupRateAfter30Days:  0,
+	}
+}
+
+func normalizeAffiliateRate(rate float64) float64 {
+	if rate < 0 {
+		return 0
+	}
+	if rate > 1 {
+		return 1
+	}
+	return rate
+}
+
+func NormalizeAffiliateRechargePolicy(config AffiliateRechargePolicyConfig) AffiliateRechargePolicyConfig {
+	if config.AttributionDays <= 0 {
+		config.AttributionDays = 30
+	}
+	if config.SettlementDays < 0 {
+		config.SettlementDays = 0
+	}
+	if config.MinTopupMoney < 0 {
+		config.MinTopupMoney = 0
+	}
+	config.FirstTopupRateWithin7Days = normalizeAffiliateRate(config.FirstTopupRateWithin7Days)
+	config.RepeatTopupRateWithin7Days = normalizeAffiliateRate(config.RepeatTopupRateWithin7Days)
+	config.FirstTopupRateWithin30Days = normalizeAffiliateRate(config.FirstTopupRateWithin30Days)
+	config.RepeatTopupRateWithin30Days = normalizeAffiliateRate(config.RepeatTopupRateWithin30Days)
+	config.FirstTopupRateAfter30Days = normalizeAffiliateRate(config.FirstTopupRateAfter30Days)
+	config.RepeatTopupRateAfter30Days = normalizeAffiliateRate(config.RepeatTopupRateAfter30Days)
+	return config
+}
+
+func AffiliateRechargePolicyToJSONString() string {
+	bytes, err := common.Marshal(NormalizeAffiliateRechargePolicy(AffiliateRechargePolicy))
+	if err != nil {
+		bytes, _ = common.Marshal(DefaultAffiliateRechargePolicy())
+	}
+	return string(bytes)
+}
+
+func UpdateAffiliateRechargePolicyByJSONString(value string) error {
+	config := DefaultAffiliateRechargePolicy()
+	if strings.TrimSpace(value) != "" {
+		if err := common.Unmarshal([]byte(value), &config); err != nil {
+			return err
+		}
+	}
+	AffiliateRechargePolicy = NormalizeAffiliateRechargePolicy(config)
+	return nil
+}

@@ -23,8 +23,16 @@ import { toast } from 'sonner'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { getSelf } from '@/lib/api'
 
-import { getAffiliateCode, transferAffiliateQuota } from '../api'
+import {
+  getAffiliateCode,
+  getAffiliateSummary,
+  transferAffiliateQuota,
+} from '../api'
 import { generateAffiliateLink } from '../lib'
+import type {
+  AffiliateCommissionSummary,
+  AffiliateRechargePolicy,
+} from '../types'
 
 // ============================================================================
 // Affiliate Hook
@@ -33,6 +41,10 @@ import { generateAffiliateLink } from '../lib'
 export function useAffiliate() {
   const [affiliateCode, setAffiliateCode] = useState<string>('')
   const [affiliateLink, setAffiliateLink] = useState<string>('')
+  const [summary, setSummary] = useState<AffiliateCommissionSummary | null>(
+    null
+  )
+  const [policy, setPolicy] = useState<AffiliateRechargePolicy | null>(null)
   const [loading, setLoading] = useState(true)
   const [transferring, setTransferring] = useState(false)
   const { copyToClipboard } = useCopyToClipboard()
@@ -41,12 +53,19 @@ export function useAffiliate() {
   const fetchAffiliateCode = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await getAffiliateCode()
+      const [codeResponse, summaryResponse] = await Promise.all([
+        getAffiliateCode(),
+        getAffiliateSummary(),
+      ])
 
-      if (response.success && response.data) {
-        setAffiliateCode(response.data)
-        const link = generateAffiliateLink(response.data)
+      if (codeResponse.success && codeResponse.data) {
+        setAffiliateCode(codeResponse.data)
+        const link = generateAffiliateLink(codeResponse.data)
         setAffiliateLink(link)
+      }
+      if (summaryResponse.success && summaryResponse.data?.summary) {
+        setSummary(summaryResponse.data.summary)
+        setPolicy(summaryResponse.data.policy ?? null)
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -70,6 +89,11 @@ export function useAffiliate() {
       if (response.success) {
         toast.success(response.message || i18next.t('Transfer successful'))
         await getSelf()
+        const summaryResponse = await getAffiliateSummary()
+        if (summaryResponse.success && summaryResponse.data?.summary) {
+          setSummary(summaryResponse.data.summary)
+          setPolicy(summaryResponse.data.policy ?? null)
+        }
         return true
       }
 
@@ -91,6 +115,8 @@ export function useAffiliate() {
     affiliateCode,
     affiliateLink,
     loading,
+    summary,
+    policy,
     transferring,
     copyAffiliateLink,
     transferQuota,

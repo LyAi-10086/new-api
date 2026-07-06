@@ -24,7 +24,11 @@ import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatQuota } from '@/lib/format'
+import {
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToDollars,
+} from '@/lib/format'
 
 import { QUOTA_PER_DOLLAR } from '../../constants'
 
@@ -44,17 +48,23 @@ export function TransferDialog({
   transferring,
 }: TransferDialogProps) {
   const { t } = useTranslation()
-  const [amount, setAmount] = useState(QUOTA_PER_DOLLAR)
+  const minimumAmount = quotaUnitsToDollars(QUOTA_PER_DOLLAR)
+  const availableAmount = quotaUnitsToDollars(availableQuota)
+  const [amount, setAmount] = useState(String(minimumAmount))
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAmount(QUOTA_PER_DOLLAR)
+      setAmount(String(minimumAmount))
     }
-  }, [open])
+  }, [minimumAmount, open])
 
   const handleConfirm = async () => {
-    const success = await onConfirm(amount)
+    const quotaAmount = parseQuotaFromDollars(Number(amount))
+    if (quotaAmount < QUOTA_PER_DOLLAR || quotaAmount > availableQuota) {
+      return
+    }
+    const success = await onConfirm(quotaAmount)
     if (success) {
       onOpenChange(false)
     }
@@ -80,7 +90,10 @@ export function TransferDialog({
           >
             {t('Cancel')}
           </Button>
-          <Button onClick={handleConfirm} disabled={transferring}>
+          <Button
+            onClick={handleConfirm}
+            disabled={transferring || availableAmount < minimumAmount}
+          >
             {transferring && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {t('Transfer')}
           </Button>
@@ -106,17 +119,39 @@ export function TransferDialog({
           </Label>
           <Input
             id='transfer-amount'
-            type='number'
+            type='text'
+            inputMode='decimal'
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            min={QUOTA_PER_DOLLAR}
-            max={availableQuota}
-            step={QUOTA_PER_DOLLAR}
+            onChange={(event) => {
+              const next = event.target.value.trim()
+              if (/^\d*(?:\.\d*)?$/.test(next)) {
+                setAmount(next)
+              }
+            }}
             className='font-mono text-lg'
           />
           <p className='text-muted-foreground text-xs'>
             {t('Minimum:')} {formatQuota(QUOTA_PER_DOLLAR)}
+            {' · '}
+            {t('Maximum:')} {formatQuota(availableQuota)}
           </p>
+          <p className='text-muted-foreground text-xs'>
+            {t('Current input will transfer approximately {{amount}}.', {
+              amount: formatQuota(
+                Math.min(
+                  availableQuota,
+                  Math.max(0, parseQuotaFromDollars(Number(amount)))
+                )
+              ),
+            })}
+          </p>
+          {availableAmount < minimumAmount ? (
+            <p className='text-destructive text-xs'>
+              {t(
+                'Available rewards have not reached the minimum transfer amount yet.'
+              )}
+            </p>
+          ) : null}
         </div>
       </div>
     </Dialog>

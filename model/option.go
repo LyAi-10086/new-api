@@ -172,6 +172,7 @@ func InitOptionMap() {
 	common.OptionMap["SensitiveWords"] = setting.SensitiveWordsToString()
 	common.OptionMap["SensitiveCheckModelScope"] = setting.SensitiveCheckModelScopeToJSONString()
 	common.OptionMap["SensitiveViolationPolicy"] = setting.SensitiveViolationPolicyToJSONString()
+	common.OptionMap[setting.AffiliateRechargePolicyOptionKey] = setting.AffiliateRechargePolicyToJSONString()
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
@@ -564,6 +565,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateSensitiveCheckModelScopeByJSONString(value)
 	case "SensitiveViolationPolicy":
 		err = setting.UpdateSensitiveViolationPolicyByJSONString(value)
+	case setting.AffiliateRechargePolicyOptionKey:
+		err = setting.UpdateAffiliateRechargePolicyByJSONString(value)
 	case "AutomaticDisableKeywords":
 		operation_setting.AutomaticDisableKeywordsFromString(value)
 	case "AutomaticDisableStatusCodes":

@@ -417,6 +417,10 @@ func TransferAffQuota(c *gin.Context) {
 	}
 
 	id := c.GetInt("id")
+	if _, err := model.SettleAffiliateCommissions(id, 500); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	user, err := model.GetUserById(id, true)
 	if err != nil {
 		common.ApiError(c, err)
@@ -437,6 +441,7 @@ func TransferAffQuota(c *gin.Context) {
 
 func GetAffCode(c *gin.Context) {
 	id := c.GetInt("id")
+	_, _ = model.SettleAffiliateCommissions(id, 500)
 	user, err := model.GetUserById(id, true)
 	if err != nil {
 		common.ApiError(c, err)
@@ -462,6 +467,9 @@ func GetAffCode(c *gin.Context) {
 
 func GetSelf(c *gin.Context) {
 	id := c.GetInt("id")
+	if id > 0 {
+		_, _ = model.SettleAffiliateCommissions(id, 500)
+	}
 	userRole := c.GetInt("role")
 	user, err := model.GetUserById(id, false)
 	if err != nil {
@@ -1479,4 +1487,193 @@ func UpdateUserSetting(c *gin.Context) {
 	}
 
 	common.ApiSuccessI18n(c, i18n.MsgSettingSaved, nil)
+}
+
+type AffiliateSettingsPayload struct {
+	RechargePolicy setting.AffiliateRechargePolicyConfig `json:"recharge_policy"`
+}
+
+func GetAffiliateSettings(c *gin.Context) {
+	common.ApiSuccess(c, AffiliateSettingsPayload{
+		RechargePolicy: setting.NormalizeAffiliateRechargePolicy(setting.AffiliateRechargePolicy),
+	})
+}
+
+func UpdateAffiliateSettings(c *gin.Context) {
+	var payload AffiliateSettingsPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		common.ApiErrorMsg(c, "无效的邀请返佣设置")
+		return
+	}
+	policy := setting.NormalizeAffiliateRechargePolicy(payload.RechargePolicy)
+	bytes, err := common.Marshal(policy)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := model.UpdateOption(setting.AffiliateRechargePolicyOptionKey, string(bytes)); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, nil)
+}
+
+func affiliateCommissionFilterFromQuery(c *gin.Context) model.AffiliateCommissionFilter {
+	parseInt := func(key string) int {
+		value, _ := strconv.Atoi(strings.TrimSpace(c.Query(key)))
+		return value
+	}
+	parseInt64 := func(key string) int64 {
+		value, _ := strconv.ParseInt(strings.TrimSpace(c.Query(key)), 10, 64)
+		return value
+	}
+	return model.AffiliateCommissionFilter{
+		InviterId: parseInt("inviter_id"),
+		InviteeId: parseInt("invitee_id"),
+		TopupId:   parseInt("topup_id"),
+		TradeNo:   strings.TrimSpace(c.Query("trade_no")),
+		Status:    strings.TrimSpace(c.Query("status")),
+		StartTime: parseInt64("start_time"),
+		EndTime:   parseInt64("end_time"),
+	}
+}
+
+func GetAffiliateCommissions(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	commissions, total, err := model.ListAffiliateCommissions(
+		affiliateCommissionFilterFromQuery(c),
+		pageInfo.GetStartIdx(),
+		pageInfo.GetPageSize(),
+	)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(commissions)
+	common.ApiSuccess(c, pageInfo)
+}
+
+func GetAffiliateCommission(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.ApiErrorMsg(c, "无效的返佣记录 ID")
+		return
+	}
+	commission, err := model.GetAffiliateCommissionById(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, commission)
+}
+
+func SettleAffiliateCommissions(c *gin.Context) {
+	inviterId, _ := strconv.Atoi(strings.TrimSpace(c.Query("inviter_id")))
+	limit, _ := strconv.Atoi(strings.TrimSpace(c.Query("limit")))
+	result, err := model.SettleAffiliateCommissions(inviterId, limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, result)
+}
+
+type selfAffiliateCommissionRecord struct {
+	Id               int     `json:"id"`
+	InviteAgeDays    int     `json:"invite_age_days"`
+	IsFirstTopup     bool    `json:"is_first_topup"`
+	FinalRate        float64 `json:"final_rate"`
+	RewardQuota      int     `json:"reward_quota"`
+	TransferredQuota int     `json:"transferred_quota"`
+	TopupQuota       int     `json:"topup_quota"`
+	Status           string  `json:"status"`
+	EligibleAt       int64   `json:"eligible_at"`
+	SettledAt        int64   `json:"settled_at"`
+	TransferredAt    int64   `json:"transferred_at"`
+	VoidReason       string  `json:"void_reason"`
+	CreatedAt        int64   `json:"created_at"`
+}
+
+func toSelfAffiliateCommissionRecord(commission model.AffiliateCommission) selfAffiliateCommissionRecord {
+	return selfAffiliateCommissionRecord{
+		Id:               commission.Id,
+		InviteAgeDays:    commission.InviteAgeDays,
+		IsFirstTopup:     commission.IsFirstTopup,
+		FinalRate:        commission.FinalRate,
+		RewardQuota:      commission.RewardQuota,
+		TransferredQuota: commission.TransferredQuota,
+		TopupQuota:       commission.TopupQuota,
+		Status:           commission.Status,
+		EligibleAt:       commission.EligibleAt,
+		SettledAt:        commission.SettledAt,
+		TransferredAt:    commission.TransferredAt,
+		VoidReason:       commission.VoidReason,
+		CreatedAt:        commission.CreatedAt,
+	}
+}
+
+func GetSelfAffiliateSummary(c *gin.Context) {
+	userId := c.GetInt("id")
+	if _, err := model.SettleAffiliateCommissions(userId, 500); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	summary, err := model.GetAffiliateCommissionSummary(userId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"summary": summary,
+		"policy":  setting.NormalizeAffiliateRechargePolicy(setting.AffiliateRechargePolicy),
+	})
+}
+
+func GetSelfAffiliateCommissions(c *gin.Context) {
+	userId := c.GetInt("id")
+	pageInfo := common.GetPageQuery(c)
+	filter := affiliateCommissionFilterFromQuery(c)
+	filter.InviterId = userId
+	// 用户侧只允许查自己的返佣进度，不开放订单号、充值单 ID 等内部筛选维度。
+	filter.InviteeId = 0
+	filter.TopupId = 0
+	filter.TradeNo = ""
+	commissions, total, err := model.ListAffiliateCommissions(
+		filter,
+		pageInfo.GetStartIdx(),
+		pageInfo.GetPageSize(),
+	)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	records := make([]selfAffiliateCommissionRecord, 0, len(commissions))
+	for _, commission := range commissions {
+		records = append(records, toSelfAffiliateCommissionRecord(commission))
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(records)
+	common.ApiSuccess(c, pageInfo)
+}
+
+func GetSelfAffiliateReferrals(c *gin.Context) {
+	userId := c.GetInt("id")
+	if _, err := model.SettleAffiliateCommissions(userId, 500); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo := common.GetPageQuery(c)
+	referrals, total, err := model.ListAffiliateReferrals(
+		userId,
+		pageInfo.GetStartIdx(),
+		pageInfo.GetPageSize(),
+	)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(referrals)
+	common.ApiSuccess(c, pageInfo)
 }

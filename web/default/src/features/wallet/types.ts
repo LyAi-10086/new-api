@@ -41,6 +41,77 @@ export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
 export type StripePaymentResponse = ApiResponse<{ pay_link: string }>
 export type AffiliateCodeResponse = ApiResponse<string>
 export type AffiliateTransferResponse = ApiResponse
+export type AffiliateCommissionSummary = {
+  pending_quota: number
+  available_quota: number
+  transferred_quota: number
+  total_reward_quota: number
+}
+export type AffiliateRechargePolicy = {
+  enabled: boolean
+  attribution_days: number
+  settlement_days: number
+  include_manual_topup: boolean
+  min_topup_money: number
+  first_topup_rate_within_7_days: number
+  repeat_topup_rate_within_7_days: number
+  first_topup_rate_within_30_days: number
+  repeat_topup_rate_within_30_days: number
+  first_topup_rate_after_30_days: number
+  repeat_topup_rate_after_30_days: number
+}
+export type AffiliateSummaryResponse = ApiResponse<{
+  summary: AffiliateCommissionSummary
+  policy?: AffiliateRechargePolicy
+}>
+export type AffiliateCommissionStatus =
+  | 'pending'
+  | 'available'
+  | 'transferred'
+  | 'voided'
+export type AffiliateCommissionRecord = {
+  id: number
+  topup_quota: number
+  invite_age_days: number
+  is_first_topup: boolean
+  final_rate: number
+  reward_quota: number
+  transferred_quota: number
+  status: AffiliateCommissionStatus
+  eligible_at: number
+  settled_at: number
+  transferred_at: number
+  void_reason: string
+  created_at: number
+}
+export type AffiliateCommissionsPage = {
+  page: number
+  page_size: number
+  total: number
+  items: AffiliateCommissionRecord[]
+}
+export type AffiliateCommissionsResponse =
+  ApiResponse<AffiliateCommissionsPage>
+export type AffiliateReferral = {
+  id: number
+  display_name: string
+  username: string
+  status: number
+  created_at: number
+  commission_count: number
+  pending_quota: number
+  available_quota: number
+  transferred_quota: number
+  total_reward_quota: number
+  last_commission_at: number
+}
+export type AffiliateReferralsPage = {
+  page: number
+  page_size: number
+  total: number
+  items: AffiliateReferral[]
+}
+export type AffiliateReferralsResponse = ApiResponse<AffiliateReferralsPage>
 export type CreemPaymentResponse = ApiResponse<{ checkout_url: string }>
 export type WaffoPaymentResponse = ApiResponse<
   { payment_url?: string } | string
@@ -128,6 +199,10 @@ export interface TopupInfo {
   pay_methods: PaymentMethod[]
   /** Minimum topup amount for online topup */
   min_topup: number
+  /** Regular payment unit price returned by the topup endpoint */
+  price?: number
+  /** USD exchange rate returned by the topup endpoint */
+  usd_exchange_rate?: number
   /** Minimum topup amount for Stripe */
   stripe_min_topup: number
   /** Preset amount options */

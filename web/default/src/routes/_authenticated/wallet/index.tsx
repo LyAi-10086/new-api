@@ -19,10 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 
-import { Wallet } from '@/features/wallet'
+import { Wallet, WalletReferrals } from '@/features/wallet'
 
 const walletSearchSchema = z.object({
   show_history: z.boolean().optional(),
+  view: z.enum(['referrals']).optional(),
 })
 
 export const Route = createFileRoute('/_authenticated/wallet/')({
@@ -31,6 +32,9 @@ export const Route = createFileRoute('/_authenticated/wallet/')({
 })
 
 function RouteComponent() {
-  const { show_history } = Route.useSearch()
+  const { show_history, view } = Route.useSearch()
+  if (view === 'referrals') {
+    return <WalletReferrals />
+  }
   return <Wallet initialShowHistory={show_history} />
 }

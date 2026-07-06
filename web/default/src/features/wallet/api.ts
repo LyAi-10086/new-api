@@ -30,6 +30,9 @@ import type {
   PaymentResponse,
   StripePaymentResponse,
   AffiliateCodeResponse,
+  AffiliateSummaryResponse,
+  AffiliateCommissionsResponse,
+  AffiliateReferralsResponse,
   AffiliateTransferResponse,
   BillingHistoryResponse,
   CompleteOrderRequest,
@@ -174,6 +177,37 @@ export async function requestWaffoPancakePayment(
  */
 export async function getAffiliateCode(): Promise<AffiliateCodeResponse> {
   const res = await api.get('/api/user/aff')
+  return res.data
+}
+
+export async function getAffiliateSummary(): Promise<AffiliateSummaryResponse> {
+  const res = await api.get('/api/user/affiliate/summary')
+  return res.data
+}
+
+export async function getSelfAffiliateCommissions(
+  page: number,
+  pageSize: number
+): Promise<AffiliateCommissionsResponse> {
+  const res = await api.get('/api/user/affiliate/commissions', {
+    params: {
+      p: page,
+      page_size: pageSize,
+    },
+  })
+  return res.data
+}
+
+export async function getSelfAffiliateReferrals(
+  page: number,
+  pageSize: number
+): Promise<AffiliateReferralsResponse> {
+  const res = await api.get('/api/user/affiliate/referrals', {
+    params: {
+      p: page,
+      page_size: pageSize,
+    },
+  })
   return res.data
 }
 
