@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
+	"github.com/bytedance/gopkg/util/gopool"
 )
 
 func formatNotifyType(channelId int, status int) string {
@@ -39,6 +40,13 @@ func EnableChannel(channelId int, usingKey string, channelName string) {
 		subject := fmt.Sprintf("通道「%s」（#%d）已被启用", channelName, channelId)
 		content := fmt.Sprintf("通道「%s」（#%d）已被启用", channelName, channelId)
 		NotifyRootUser(formatNotifyType(channelId, common.ChannelStatusEnabled), subject, content)
+		gopool.Go(func() {
+			ObserveChannelRecovery(ChannelAlertRecoveryParams{
+				ChannelId:   channelId,
+				ChannelName: channelName,
+				Source:      ChannelAlertSourceScheduledTest,
+			})
+		})
 	}
 }
 

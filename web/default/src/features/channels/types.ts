@@ -106,6 +106,7 @@ export interface ChannelOtherSettings {
   upstream_model_update_ignored_models?: string[]
   upstream_model_update_last_check_time?: number
   upstream_model_update_last_detected_models?: string[]
+  channel_alert_enabled?: boolean
   advanced_custom?: AdvancedCustomConfig
 }
 
@@ -361,6 +362,7 @@ export interface ChannelFormData {
   multi_key_mode?: 'single' | 'batch' | 'multi_to_single'
   multi_key_type?: 'random' | 'polling'
   batch_add_set_key_prefix_2_name?: boolean
+  channel_alert_enabled?: boolean
 }
 
 // ============================================================================

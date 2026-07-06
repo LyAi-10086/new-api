@@ -85,6 +85,30 @@ const MODELS_SECTIONS = [
             settings['monitor_setting.auto_test_channel_minutes'],
           'monitor_setting.channel_test_mode':
             settings['monitor_setting.channel_test_mode'],
+          'channel_alert_setting.enabled':
+            settings['channel_alert_setting.enabled'],
+          'channel_alert_setting.recipients':
+            settings['channel_alert_setting.recipients'],
+          'channel_alert_setting.window_seconds':
+            settings['channel_alert_setting.window_seconds'],
+          'channel_alert_setting.failure_threshold':
+            settings['channel_alert_setting.failure_threshold'],
+          'channel_alert_setting.cooldown_seconds':
+            settings['channel_alert_setting.cooldown_seconds'],
+          'channel_alert_setting.recovery_enabled':
+            settings['channel_alert_setting.recovery_enabled'],
+          'channel_alert_setting.recovery_cooldown_seconds':
+            settings['channel_alert_setting.recovery_cooldown_seconds'],
+          'channel_alert_setting.status_codes':
+            settings['channel_alert_setting.status_codes'],
+          'channel_alert_setting.keywords':
+            settings['channel_alert_setting.keywords'],
+          'channel_alert_setting.include_relay_errors':
+            settings['channel_alert_setting.include_relay_errors'],
+          'channel_alert_setting.include_scheduled_tests':
+            settings['channel_alert_setting.include_scheduled_tests'],
+          'channel_alert_setting.include_manual_tests':
+            settings['channel_alert_setting.include_manual_tests'],
         }}
       />
     ),

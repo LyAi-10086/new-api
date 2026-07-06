@@ -26,6 +26,9 @@ import type {
   AffiliateSettleResponse,
   AffiliateSettings,
   AffiliateSettingsResponse,
+  ChannelAlertEventsResponse,
+  ChannelAlertFilters,
+  ChannelAlertStatesResponse,
   FetchUpstreamRatiosRequest,
   LogCleanupTask,
   SensitiveEnabledGroupsResponse,
@@ -51,6 +54,31 @@ export async function getSystemOptions() {
 
 export async function updateSystemOption(request: UpdateOptionRequest) {
   const res = await api.put<UpdateOptionResponse>('/api/option/', request)
+  return res.data
+}
+
+export async function sendChannelAlertTest() {
+  const res = await api.post<UpdateOptionResponse>('/api/channel-alert/test')
+  return res.data
+}
+
+export async function getChannelAlertEvents(filters: ChannelAlertFilters) {
+  const res = await api.get<ChannelAlertEventsResponse>(
+    '/api/channel-alert/events',
+    {
+      params: filters,
+    }
+  )
+  return res.data
+}
+
+export async function getChannelAlertStates(filters: ChannelAlertFilters) {
+  const res = await api.get<ChannelAlertStatesResponse>(
+    '/api/channel-alert/states',
+    {
+      params: filters,
+    }
+  )
   return res.data
 }
 

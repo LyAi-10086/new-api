@@ -222,6 +222,16 @@ func SetApiRouter(router *gin.Engine) {
 			affiliateRoute.POST("/settle", controller.SettleAffiliateCommissions)
 		}
 
+		channelAlertRoute := apiRouter.Group("/channel-alert")
+		channelAlertRoute.Use(middleware.RootAuth())
+		{
+			channelAlertRoute.GET("/settings", controller.GetChannelAlertSettings)
+			channelAlertRoute.PUT("/settings", controller.UpdateChannelAlertSettings)
+			channelAlertRoute.GET("/events", controller.GetChannelAlertEvents)
+			channelAlertRoute.GET("/states", controller.GetChannelAlertStates)
+			channelAlertRoute.POST("/test", middleware.CriticalRateLimit(), controller.TestChannelAlertEmail)
+		}
+
 		// Custom OAuth provider management (root only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")
 		customOAuthRoute.Use(middleware.RootAuth())

@@ -234,6 +234,18 @@ export type ModelSettings = {
   'monitor_setting.auto_test_channel_enabled': boolean
   'monitor_setting.auto_test_channel_minutes': number
   'monitor_setting.channel_test_mode': 'scheduled_all' | 'passive_recovery'
+  'channel_alert_setting.enabled': boolean
+  'channel_alert_setting.recipients': string
+  'channel_alert_setting.window_seconds': number
+  'channel_alert_setting.failure_threshold': number
+  'channel_alert_setting.cooldown_seconds': number
+  'channel_alert_setting.recovery_enabled': boolean
+  'channel_alert_setting.recovery_cooldown_seconds': number
+  'channel_alert_setting.status_codes': string
+  'channel_alert_setting.keywords': string
+  'channel_alert_setting.include_relay_errors': boolean
+  'channel_alert_setting.include_scheduled_tests': boolean
+  'channel_alert_setting.include_manual_tests': boolean
   'channel_affinity_setting.enabled': boolean
   'channel_affinity_setting.switch_on_success': boolean
   'channel_affinity_setting.keep_on_channel_disabled': boolean
@@ -531,6 +543,73 @@ export type SensitiveViolationResponse = {
   success: boolean
   message: string
   data: SensitiveViolation
+}
+
+export type ChannelAlertEvent = {
+  id: number
+  channel_id: number
+  channel_name: string
+  channel_type: number
+  source: string
+  rule_key: string
+  status_code: number
+  error_code: string
+  error_type: string
+  model_name: string
+  group_name: string
+  request_path: string
+  request_id: string
+  error_preview: string
+  alert_sent: boolean
+  email_recipients: string
+  created_at: number
+}
+
+export type ChannelAlertState = {
+  id: number
+  channel_id: number
+  rule_key: string
+  active: boolean
+  last_alert_at: number
+  last_recovery_at: number
+  last_event_id: number
+  window_count: number
+  updated_at: number
+}
+
+export type ChannelAlertFilters = {
+  channel_id?: string
+  source?: string
+  rule_key?: string
+  active?: boolean
+  p?: number
+  page_size?: number
+}
+
+export type ChannelAlertEventsPage = {
+  page: number
+  page_size: number
+  total: number
+  items: ChannelAlertEvent[]
+}
+
+export type ChannelAlertStatesPage = {
+  page: number
+  page_size: number
+  total: number
+  items: ChannelAlertState[]
+}
+
+export type ChannelAlertEventsResponse = {
+  success: boolean
+  message: string
+  data: ChannelAlertEventsPage
+}
+
+export type ChannelAlertStatesResponse = {
+  success: boolean
+  message: string
+  data: ChannelAlertStatesPage
 }
 
 export type AffiliateRechargePolicy = {

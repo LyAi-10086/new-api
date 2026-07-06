@@ -904,7 +904,7 @@ type channelTestSummary struct {
 // cancellation so a system-task runner that loses its lease stops promptly. When
 // report is non-nil it is called after each channel with (processed, total) so
 // the system task can surface progress.
-func performChannelTests(ctx context.Context, channels []*model.Channel, testUserID int, allowDisable bool, report func(processed, total int)) channelTestSummary {
+func performChannelTests(ctx context.Context, channels []*model.Channel, testUserID int, allowDisable bool, alertSource string, report func(processed, total int)) channelTestSummary {
 	summary := channelTestSummary{}
 	var disableThreshold = int64(common.ChannelDisableThreshold * 1000)
 	if disableThreshold == 0 {
@@ -953,11 +953,12 @@ func performChannelTests(ctx context.Context, channels []*model.Channel, testUse
 			summary.Succeeded++
 		} else {
 			summary.Failed++
+			service.ObserveChannelFailureAsync(buildChannelTestAlertFailure(channel, result.context, newAPIError, alertSource))
 		}
 
 		// disable channel
 		if allowDisable && isChannelEnabled && shouldBanChannel && channel.GetAutoBan() {
-			processChannelError(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
+			processChannelErrorWithoutAlert(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 			summary.Disabled++
 		}
 
@@ -986,6 +987,26 @@ func performChannelTests(ctx context.Context, channels []*model.Channel, testUse
 	return summary
 }
 
+func buildChannelTestAlertFailure(channel *model.Channel, c *gin.Context, err *types.NewAPIError, source string) service.ChannelAlertFailureParams {
+	params := service.ChannelAlertFailureParams{
+		ChannelId:    channel.Id,
+		ChannelName:  channel.Name,
+		ChannelType:  channel.Type,
+		Source:       source,
+		StatusCode:   err.StatusCode,
+		ErrorCode:    string(err.GetErrorCode()),
+		ErrorType:    string(err.GetErrorType()),
+		ErrorPreview: err.MaskSensitiveErrorWithStatusCode(),
+	}
+	if c != nil {
+		params.ModelName = c.GetString("original_model")
+		params.GroupName = c.GetString("group")
+		params.RequestPath = requestPathFromContext(c)
+		params.RequestId = c.GetString(common.RequestIdKey)
+	}
+	return params
+}
+
 // runChannelTestTask runs one synchronous channel test cycle for the system task
 // runner (both the scheduled job and the manual "test all channels" trigger go
 // through here). It honors ctx cancellation so a runner that loses its lease
@@ -1008,7 +1029,11 @@ func runChannelTestTask(ctx context.Context, mode string, notify bool, report fu
 	}
 	selected := selectChannelsForAutomaticTest(channels, mode)
 	allowDisable := mode != operation_setting.ChannelTestModePassiveRecovery
-	summary := performChannelTests(ctx, selected, testUserID, allowDisable, report)
+	alertSource := service.ChannelAlertSourceScheduledTest
+	if notify {
+		alertSource = service.ChannelAlertSourceManualTest
+	}
+	summary := performChannelTests(ctx, selected, testUserID, allowDisable, alertSource, report)
 	if notify && (ctx == nil || ctx.Err() == nil) {
 		service.NotifyRootUser(dto.NotifyTypeChannelTest, "通道测试完成", "所有通道测试已完成")
 	}

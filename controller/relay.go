@@ -375,7 +375,31 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 }
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
+	processChannelErrorWithAlert(c, channelError, err, service.ChannelAlertSourceRelay)
+}
+
+func processChannelErrorWithoutAlert(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
+	processChannelErrorWithAlert(c, channelError, err, "")
+}
+
+func processChannelErrorWithAlert(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError, alertSource string) {
 	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
+	if alertSource != "" {
+		service.ObserveChannelFailureAsync(service.ChannelAlertFailureParams{
+			ChannelId:    channelError.ChannelId,
+			ChannelName:  channelError.ChannelName,
+			ChannelType:  channelError.ChannelType,
+			Source:       alertSource,
+			StatusCode:   err.StatusCode,
+			ErrorCode:    string(err.GetErrorCode()),
+			ErrorType:    string(err.GetErrorType()),
+			ErrorPreview: err.MaskSensitiveErrorWithStatusCode(),
+			ModelName:    c.GetString("original_model"),
+			GroupName:    c.GetString("group"),
+			RequestPath:  requestPathFromContext(c),
+			RequestId:    c.GetString(common.RequestIdKey),
+		})
+	}
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
 	if service.ShouldDisableChannel(err) && channelError.AutoBan {
@@ -419,6 +443,13 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.MaskSensitiveErrorWithStatusCode(), tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
 	}
 
+}
+
+func requestPathFromContext(c *gin.Context) string {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return ""
+	}
+	return c.Request.URL.Path
 }
 
 func RelayMidjourney(c *gin.Context) {
