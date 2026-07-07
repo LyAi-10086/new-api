@@ -105,6 +105,10 @@ func appendLogModelNames(relayInfo *relaycommon.RelayInfo, other map[string]inte
 	}
 }
 
+func AppendLogModelNames(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
+	appendLogModelNames(relayInfo, other)
+}
+
 func appendStreamStatus(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
 	if relayInfo == nil || other == nil || !relayInfo.IsStream || relayInfo.StreamStatus == nil {
 		return
