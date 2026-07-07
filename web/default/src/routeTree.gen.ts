@@ -41,7 +41,10 @@ import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedSystemSettingsIndexRouteImport } from './routes/_authenticated/system-settings/index'
 import { Route as AuthenticatedSystemInfoIndexRouteImport } from './routes/_authenticated/system-info/index'
+import { Route as AuthenticatedModelStatusIndexRouteImport } from './routes/_authenticated/model-status/index'
+import { Route as AuthenticatedModelAvailabilityIndexRouteImport } from './routes/_authenticated/model-availability/index'
 import { Route as AuthenticatedDataStatisticsIndexRouteImport } from './routes/_authenticated/data-statistics/index'
+import { Route as AuthenticatedChannelAlertsIndexRouteImport } from './routes/_authenticated/channel-alerts/index'
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
@@ -236,10 +239,28 @@ const AuthenticatedSystemInfoIndexRoute =
     path: '/system-info/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedModelStatusIndexRoute =
+  AuthenticatedModelStatusIndexRouteImport.update({
+    id: '/model-status/',
+    path: '/model-status/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedModelAvailabilityIndexRoute =
+  AuthenticatedModelAvailabilityIndexRouteImport.update({
+    id: '/model-availability/',
+    path: '/model-availability/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDataStatisticsIndexRoute =
   AuthenticatedDataStatisticsIndexRouteImport.update({
     id: '/data-statistics/',
     path: '/data-statistics/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedChannelAlertsIndexRoute =
+  AuthenticatedChannelAlertsIndexRouteImport.update({
+    id: '/channel-alerts/',
+    path: '/channel-alerts/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSubscriptionsIndexRoute =
@@ -452,8 +473,11 @@ export interface FileRoutesByFullPath {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
+  '/channel-alerts/': typeof AuthenticatedChannelAlertsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/keys/': typeof AuthenticatedKeysIndexRoute
+  '/model-availability/': typeof AuthenticatedModelAvailabilityIndexRoute
+  '/model-status/': typeof AuthenticatedModelStatusIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
@@ -514,8 +538,11 @@ export interface FileRoutesByTo {
   '/models/$section': typeof AuthenticatedModelsSectionRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
+  '/channel-alerts': typeof AuthenticatedChannelAlertsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/keys': typeof AuthenticatedKeysIndexRoute
+  '/model-availability': typeof AuthenticatedModelAvailabilityIndexRoute
+  '/model-status': typeof AuthenticatedModelStatusIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
@@ -580,8 +607,11 @@ export interface FileRoutesById {
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
+  '/_authenticated/channel-alerts/': typeof AuthenticatedChannelAlertsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
+  '/_authenticated/model-availability/': typeof AuthenticatedModelAvailabilityIndexRoute
+  '/_authenticated/model-status/': typeof AuthenticatedModelStatusIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
@@ -645,8 +675,11 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/usage-logs/$section'
     | '/channels/'
+    | '/channel-alerts/'
     | '/dashboard/'
     | '/keys/'
+    | '/model-availability/'
+    | '/model-status/'
     | '/models/'
     | '/playground/'
     | '/profile/'
@@ -707,8 +740,11 @@ export interface FileRouteTypes {
     | '/models/$section'
     | '/usage-logs/$section'
     | '/channels'
+    | '/channel-alerts'
     | '/dashboard'
     | '/keys'
+    | '/model-availability'
+    | '/model-status'
     | '/models'
     | '/playground'
     | '/profile'
@@ -772,8 +808,11 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$section'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/channels/'
+    | '/_authenticated/channel-alerts/'
     | '/_authenticated/dashboard/'
     | '/_authenticated/keys/'
+    | '/_authenticated/model-availability/'
+    | '/_authenticated/model-status/'
     | '/_authenticated/models/'
     | '/_authenticated/playground/'
     | '/_authenticated/profile/'
@@ -1050,11 +1089,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemInfoIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/model-status/': {
+      id: '/_authenticated/model-status/'
+      path: '/model-status'
+      fullPath: '/model-status/'
+      preLoaderRoute: typeof AuthenticatedModelStatusIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/model-availability/': {
+      id: '/_authenticated/model-availability/'
+      path: '/model-availability'
+      fullPath: '/model-availability/'
+      preLoaderRoute: typeof AuthenticatedModelAvailabilityIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/data-statistics/': {
       id: '/_authenticated/data-statistics/'
       path: '/data-statistics'
       fullPath: '/data-statistics/'
       preLoaderRoute: typeof AuthenticatedDataStatisticsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/channel-alerts/': {
+      id: '/_authenticated/channel-alerts/'
+      path: '/channel-alerts'
+      fullPath: '/channel-alerts/'
+      preLoaderRoute: typeof AuthenticatedChannelAlertsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/subscriptions/': {
@@ -1370,9 +1430,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedKeysIndexRoute: typeof AuthenticatedKeysIndexRoute
+  AuthenticatedModelAvailabilityIndexRoute: typeof AuthenticatedModelAvailabilityIndexRoute
+  AuthenticatedModelStatusIndexRoute: typeof AuthenticatedModelStatusIndexRoute
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
   AuthenticatedPlaygroundIndexRoute: typeof AuthenticatedPlaygroundIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
+  AuthenticatedChannelAlertsIndexRoute: typeof AuthenticatedChannelAlertsIndexRoute
   AuthenticatedDataStatisticsIndexRoute: typeof AuthenticatedDataStatisticsIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
@@ -1394,9 +1457,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedKeysIndexRoute: AuthenticatedKeysIndexRoute,
+  AuthenticatedModelAvailabilityIndexRoute:
+    AuthenticatedModelAvailabilityIndexRoute,
+  AuthenticatedModelStatusIndexRoute: AuthenticatedModelStatusIndexRoute,
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
   AuthenticatedPlaygroundIndexRoute: AuthenticatedPlaygroundIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
+  AuthenticatedChannelAlertsIndexRoute: AuthenticatedChannelAlertsIndexRoute,
   AuthenticatedDataStatisticsIndexRoute: AuthenticatedDataStatisticsIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
     AuthenticatedRedemptionCodesIndexRoute,

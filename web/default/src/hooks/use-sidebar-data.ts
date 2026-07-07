@@ -19,10 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   Activity,
   BarChart3,
+  BellRing,
   Box,
   CreditCard,
   FileText,
   FlaskConical,
+  Gauge,
+  HeartPulse,
   Key,
   LayoutDashboard,
   ListTodo,
@@ -83,6 +86,11 @@ export function useSidebarData(): SidebarData {
             icon: LayoutDashboard,
           },
           {
+            title: t('Model Status'),
+            url: '/model-status',
+            icon: HeartPulse,
+          },
+          {
             title: t('API Keys'),
             url: '/keys',
             icon: Key,
@@ -132,9 +140,21 @@ export function useSidebarData(): SidebarData {
             icon: Radio,
           },
           {
+            title: t('Channel Alerts'),
+            url: '/channel-alerts',
+            icon: BellRing,
+            requiredRole: ROLE.SUPER_ADMIN,
+          },
+          {
             title: t('Models'),
             url: '/models/metadata',
             icon: Box,
+          },
+          {
+            title: t('Model Availability'),
+            url: '/model-availability',
+            icon: Gauge,
+            requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('Users'),
