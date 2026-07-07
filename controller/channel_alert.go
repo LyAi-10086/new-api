@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/QuantumNous/new-api/common"
@@ -73,6 +74,14 @@ func GetChannelAlertEvents(c *gin.Context) {
 		StartTime: int64(common.String2Int(c.Query("start_time"))),
 		EndTime:   int64(common.String2Int(c.Query("end_time"))),
 	}
+	if c.Query("alert_sent") != "" {
+		alertSent, err := strconv.ParseBool(c.Query("alert_sent"))
+		if err != nil {
+			common.ApiError(c, fmt.Errorf("invalid alert_sent: %w", err))
+			return
+		}
+		filter.AlertSent = &alertSent
+	}
 	events, total, err := model.ListChannelAlertEvents(filter, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
@@ -88,8 +97,16 @@ func GetChannelAlertEvents(c *gin.Context) {
 
 func GetChannelAlertStates(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
-	onlyActive, _ := strconv.ParseBool(c.Query("active"))
-	states, total, err := model.ListChannelAlertStates(common.String2Int(c.Query("channel_id")), onlyActive, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	var active *bool
+	if c.Query("active") != "" {
+		activeValue, err := strconv.ParseBool(c.Query("active"))
+		if err != nil {
+			common.ApiError(c, fmt.Errorf("invalid active: %w", err))
+			return
+		}
+		active = &activeValue
+	}
+	states, total, err := model.ListChannelAlertStates(common.String2Int(c.Query("channel_id")), active, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -99,5 +116,22 @@ func GetChannelAlertStates(c *gin.Context) {
 		"total":     total,
 		"page":      pageInfo.GetPage(),
 		"page_size": pageInfo.GetPageSize(),
+	})
+}
+
+func ClearChannelAlertState(c *gin.Context) {
+	stateId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || stateId <= 0 {
+		common.ApiError(c, fmt.Errorf("invalid channel alert state id"))
+		return
+	}
+	state, event, err := service.ClearChannelAlertState(stateId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"state": state,
+		"event": event,
 	})
 }

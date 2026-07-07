@@ -44,6 +44,7 @@ type ChannelAlertEventFilter struct {
 	ChannelId int
 	Source    string
 	RuleKey   string
+	AlertSent *bool
 	StartTime int64
 	EndTime   int64
 }
@@ -135,6 +136,9 @@ func buildChannelAlertEventQuery(filter ChannelAlertEventFilter) *gorm.DB {
 	if filter.RuleKey != "" {
 		query = query.Where("rule_key = ?", filter.RuleKey)
 	}
+	if filter.AlertSent != nil {
+		query = query.Where("alert_sent = ?", *filter.AlertSent)
+	}
 	if filter.StartTime > 0 {
 		query = query.Where("created_at >= ?", filter.StartTime)
 	}
@@ -158,13 +162,13 @@ func ListChannelAlertEvents(filter ChannelAlertEventFilter, startIdx int, num in
 	return events, total, err
 }
 
-func ListChannelAlertStates(channelId int, onlyActive bool, startIdx int, num int) ([]ChannelAlertState, int64, error) {
+func ListChannelAlertStates(channelId int, active *bool, startIdx int, num int) ([]ChannelAlertState, int64, error) {
 	query := DB.Model(&ChannelAlertState{})
 	if channelId > 0 {
 		query = query.Where("channel_id = ?", channelId)
 	}
-	if onlyActive {
-		query = query.Where("active = ?", true)
+	if active != nil {
+		query = query.Where("active = ?", *active)
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {

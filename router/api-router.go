@@ -242,6 +242,7 @@ func SetApiRouter(router *gin.Engine) {
 			channelAlertRoute.PUT("/settings", controller.UpdateChannelAlertSettings)
 			channelAlertRoute.GET("/events", controller.GetChannelAlertEvents)
 			channelAlertRoute.GET("/states", controller.GetChannelAlertStates)
+			channelAlertRoute.POST("/states/:id/clear", controller.ClearChannelAlertState)
 			channelAlertRoute.POST("/test", middleware.CriticalRateLimit(), controller.TestChannelAlertEmail)
 		}
 

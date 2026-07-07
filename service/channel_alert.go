@@ -21,6 +21,7 @@ const (
 	ChannelAlertSourceRelay         = "relay"
 	ChannelAlertSourceScheduledTest = "scheduled_test"
 	ChannelAlertSourceManualTest    = "manual_test"
+	ChannelAlertSourceManualClear   = "manual_clear"
 	channelAlertPreviewLimit        = 600
 	channelAlertRetentionSeconds    = 30 * 86400
 	channelAlertCleanupInterval     = 3600
@@ -197,6 +198,61 @@ func SendChannelAlertTest() error {
 		RequestId:    "test",
 	}
 	return sendChannelAlertEmail(recipients, "New API 渠道告警测试", buildChannelFailureAlertContent(params, 0, 1, policy.WindowSeconds))
+}
+
+func ClearChannelAlertState(stateId int) (*model.ChannelAlertState, *model.ChannelAlertEvent, error) {
+	if stateId <= 0 {
+		return nil, nil, fmt.Errorf("invalid channel alert state id")
+	}
+
+	now := common.GetTimestamp()
+	state := &model.ChannelAlertState{}
+	event := &model.ChannelAlertEvent{}
+	err := model.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", stateId).First(state).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("channel alert state not found")
+			}
+			return err
+		}
+		if !state.Active {
+			return fmt.Errorf("channel alert state is not active")
+		}
+
+		channelName := ""
+		channelType := 0
+		if state.ChannelId > 0 {
+			channel := &model.Channel{}
+			if err := tx.Omit("key").First(channel, "id = ?", state.ChannelId).Error; err == nil {
+				channelName = channel.Name
+				channelType = channel.Type
+			}
+		}
+
+		event = &model.ChannelAlertEvent{
+			ChannelId:    state.ChannelId,
+			ChannelName:  channelName,
+			ChannelType:  channelType,
+			Source:       ChannelAlertSourceManualClear,
+			RuleKey:      ChannelAlertSourceManualClear,
+			ErrorCode:    ChannelAlertSourceManualClear,
+			ErrorType:    ChannelAlertSourceManualClear,
+			ErrorPreview: BuildSafeChannelAlertPreview("Channel alert state manually cleared: " + state.RuleKey),
+			CreatedAt:    now,
+		}
+		if err := tx.Create(event).Error; err != nil {
+			return err
+		}
+
+		state.Active = false
+		state.LastRecoveryAt = now
+		state.LastEventId = event.Id
+		return model.UpdateChannelAlertState(tx, state)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return state, event, nil
 }
 
 func ParseChannelAlertRecipients(values []string) ([]string, error) {

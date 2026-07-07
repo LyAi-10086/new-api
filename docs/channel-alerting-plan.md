@@ -7,7 +7,7 @@
 ### 0.1 已落地
 
 - 全局配置已落在 `channel_alert_setting.*` options 下，并由 `setting/operation_setting/channel_alert_setting.go` 注册默认值与归一化规则。
-- 后端专用接口已存在：`GET /api/channel-alert/settings`、`PUT /api/channel-alert/settings`、`GET /api/channel-alert/events`、`GET /api/channel-alert/states`、`POST /api/channel-alert/test`，路由均在 RootAuth 下，测试邮件额外走 `CriticalRateLimit`。
+- 后端专用接口已存在：`GET /api/channel-alert/settings`、`PUT /api/channel-alert/settings`、`GET /api/channel-alert/events`、`GET /api/channel-alert/states`、`POST /api/channel-alert/states/:id/clear`、`POST /api/channel-alert/test`，路由均在 RootAuth 下，测试邮件额外走 `CriticalRateLimit`。
 - 渠道级开关已接入新版渠道新增/编辑抽屉，保存到渠道 `settings` JSON（Go 字段为 `Channel.OtherSettings`，前端字段为 `settings`）里的 `channel_alert_enabled`。
 - `channel_alert_events` 与 `channel_alert_states` 两张表已在 `model/main.go` 的普通与快速迁移中注册。
 - 后端服务已实现异步失败观察、窗口计数、状态码/关键词/`channel:` 错误码匹配、冷却控制、邮件发送、敏感信息遮蔽、恢复通知、恢复事件记录和 30 天事件清理。
@@ -24,14 +24,14 @@
 - 状态表当前使用 `last_event_id` 与 `window_count`；原规划中的 `last_error_preview`、`event_count` 尚未作为状态列落地。
 - 冷却期内如果同渠道同规则仍处于 active 且未过冷却，当前实现会直接跳过重复事件记录，因此事件列表不是完整失败审计日志。
 - 恢复通知当前会更新 `channel_alert_states`，并写入一条 `recovery` 类型事件；如果邮件发送成功，会把该恢复事件标记为已发送。
-- 系统设置页已内嵌最近事件和活动状态表，暂未提供独立 `/channel-alerts` 页面、完整筛选页或手动清除状态入口。
+- 系统设置页已内嵌最近事件和活动状态表；后端已支持事件筛选、状态筛选和手动清除状态接口，新版前端已新增独立 `/channel-alerts` 页面。
 - 当前保存全局告警时，前端和后端都会校验：开启总开关时收件人不能为空；测试接口也会在收件人为空或 SMTP 不可用时返回明确错误。
 
 ### 0.3 待增强
 
 - 渠道列表展示最近告警时间、最近恢复时间、最近原因预览和告警启用状态。
-- 独立告警事件页或更完整的系统设置列表，支持渠道、来源、规则、时间范围、发送状态筛选和分页。
-- 手动清除/确认告警状态，方便审计和运营闭环。
+- 渠道告警独立事件页已接入筛选、分页、活动状态和手动清除状态。
+- 手动清除状态仅允许清除 active 状态，会写入 `manual_clear` 事件，方便审计和运营闭环。
 - 每渠道覆盖阈值、窗口、冷却时间，以及按标签批量启用告警。
 - 告警级别、渠道余额异常、响应时间持续超阈值、模型不可用比例等更细规则。
 - Webhook、Bark、Gotify 等非邮件通知方式。
@@ -43,8 +43,9 @@
 - 全局配置：后台 `系统设置 -> 模型设置 -> 路由可靠性 -> Channel alerts` 区域。
 - 渠道级开关：新版渠道新增/编辑抽屉中的 `Channel alert` 开关。
 - 测试邮件：`POST /api/channel-alert/test`，或系统设置里的 `Send test alert` 按钮。
-- 事件查询：`GET /api/channel-alert/events?p=1&page_size=10`，也可在系统设置页的 `Recent alert events` 表查看。
-- 活动状态查询：`GET /api/channel-alert/states?active=true&p=1&page_size=10`，也可在系统设置页的 `Active alert states` 表查看。
+- 事件查询：`GET /api/channel-alert/events?p=1&page_size=10`，支持 `channel_id`、`source`、`rule_key`、`alert_sent`、`start_time`、`end_time` 筛选，也可在系统设置页的 `Recent alert events` 表查看。
+- 状态查询：`GET /api/channel-alert/states?active=true&p=1&page_size=10`，支持 `active`、`channel_id` 筛选，也可在系统设置页的 `Active alert states` 表查看。
+- 手动清除状态：`POST /api/channel-alert/states/:id/clear`，会将状态置为 inactive，写入 `manual_clear` 事件，不发送邮件。
 - 真实请求验收：全局告警开启、收件人有效、渠道 `channel_alert_enabled=true`，触发配置内状态码/关键词并达到窗口阈值后，应发送异常邮件并写入事件/状态。
 - 定时/手动测试验收：分别打开 `include_scheduled_tests` 或 `include_manual_tests`，让渠道测试产生命中规则的失败，达到阈值后应发送告警。
 - 恢复验收：已有 active 告警状态后，渠道重新启用并开启恢复通知，应发送恢复邮件、写入 recovery 事件并将 active 状态置为 false。
@@ -365,6 +366,7 @@ GET /api/channel-alert/settings
 PUT /api/channel-alert/settings
 GET /api/channel-alert/events
 GET /api/channel-alert/states
+POST /api/channel-alert/states/:id/clear
 POST /api/channel-alert/test
 ```
 
@@ -372,6 +374,7 @@ POST /api/channel-alert/test
 
 - 使用 `RootAuth`，因为涉及全局收件人和告警策略。
 - `POST /api/channel-alert/test` 额外使用 `CriticalRateLimit`。
+- `POST /api/channel-alert/states/:id/clear` 使用同一 RootAuth 分组，只做状态确认和审计事件记录，不触发邮件。
 
 注意：
 
@@ -481,15 +484,15 @@ ObserveChannelRecovery(params)
 
 - 最近告警事件表，读取 `GET /api/channel-alert/events`。
 - 活动告警状态表，读取 `GET /api/channel-alert/states?active=true`。
+- 后端已支持事件按渠道、来源、规则、发送状态和时间范围筛选，状态按渠道和 active 筛选，并提供手动清除状态接口。
 
-还没有独立的完整告警记录页、复杂筛选页或手动清除状态入口。
+独立告警记录页已经落在 `/channel-alerts`，支持筛选、分页、活动状态查看和手动清除。
 
-第二阶段增加：
+第二阶段后续增强：
 
-- `/channel-alerts`
-- 告警事件列表。
-- 筛选：渠道、来源、状态码、时间范围、是否已发送。
-- 状态页：当前仍处于告警中的渠道。
+- 渠道列表展示最近告警、最近恢复和告警启用状态。
+- 更细的状态码/错误码筛选。
+- 每渠道覆盖阈值、窗口和冷却时间。
 
 ## 7. 测试与验收
 
@@ -507,7 +510,8 @@ ObserveChannelRecovery(params)
 - SMTP 未配置时返回明确测试错误。
 - 真实请求链路不因告警发送失败而失败。
 - 恢复成功后只在开启恢复通知时发送。
-- 恢复成功后活动状态应被置为 false；当前恢复通知不额外写入恢复事件。
+- 恢复成功后活动状态应被置为 false，并写入恢复事件。
+- 手动清除状态应将 active 置为 false，刷新 `last_recovery_at` / `updated_at`，写入 `manual_clear` 事件且不发送邮件。
 
 ### 7.2 前端验证
 
@@ -538,9 +542,10 @@ ObserveChannelRecovery(params)
 ### 阶段二：告警可视化（部分落地，后续增强）
 
 - 已在系统设置页内嵌最近告警事件和活动状态表。
+- 已新增独立 `/channel-alerts` 页面，展示告警事件、活动状态、筛选、分页和手动清除入口。
+- 已补齐后端筛选参数和手动清除状态接口。
 - 待增强：渠道列表显示最近告警状态。
-- 待增强：独立告警事件页或完整筛选页。
-- 待增强：支持更多筛选、分页体验和手动清除告警状态。
+- 待增强：更细的筛选项和渠道列表联动。
 
 ### 阶段三：规则增强（待增强）
 
