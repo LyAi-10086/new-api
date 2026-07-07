@@ -373,13 +373,14 @@ func SyncUpstreamModels(c *gin.Context) {
 
 		// 创建模型
 		mi := &model.Model{
-			ModelName:   name,
-			Description: up.Description,
-			Icon:        up.Icon,
-			Tags:        up.Tags,
-			VendorID:    vendorID,
-			Status:      chooseStatus(up.Status, 1),
-			NameRule:    up.NameRule,
+			ModelName:           name,
+			Description:         up.Description,
+			Icon:                up.Icon,
+			Tags:                up.Tags,
+			VendorID:            vendorID,
+			AvailabilityEnabled: 1,
+			Status:              chooseStatus(up.Status, 1),
+			NameRule:            up.NameRule,
 		}
 		if err := mi.Insert(); err == nil {
 			createdModels++

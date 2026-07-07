@@ -38,6 +38,7 @@ export type PerformanceMetricsData = {
   message?: string
   data: {
     model_name: string
+    display_name?: string
     series_schema?: string
     groups: PerformanceGroup[]
   }
@@ -45,6 +46,8 @@ export type PerformanceMetricsData = {
 
 export type PerfModelSummary = {
   model_name: string
+  display_name?: string
+  display_order?: number
   avg_latency_ms: number
   success_rate: number
   avg_tps: number

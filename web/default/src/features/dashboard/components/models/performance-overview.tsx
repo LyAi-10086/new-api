@@ -205,7 +205,7 @@ function ModelBadge(props: { model: PerfModelSummary }) {
   return (
     <span className='bg-muted/50 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1'>
       <span className='max-w-[10rem] truncate font-mono text-[11px]'>
-        {model.model_name}
+        {model.display_name || model.model_name}
       </span>
       <span
         className={cn(

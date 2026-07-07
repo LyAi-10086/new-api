@@ -95,6 +95,9 @@ const extendedModelFormSchema = z.object({
   tags: z.array(z.string()),
   vendor_id: z.number().optional(),
   endpoints: z.string(),
+  display_name: z.string(),
+  display_order: z.number(),
+  availability_enabled: z.boolean(),
   name_rule: z.number(),
   status: z.boolean(),
   sync_official: z.boolean(),
@@ -234,6 +237,9 @@ export function ModelMutateDrawer({
       tags: [],
       vendor_id: undefined,
       endpoints: '',
+      display_name: '',
+      display_order: 0,
+      availability_enabled: true,
       name_rule: 0,
       status: true,
       sync_official: true,
@@ -294,6 +300,9 @@ export function ModelMutateDrawer({
         tags: parseModelTags(model.tags),
         vendor_id: model.vendor_id,
         endpoints: model.endpoints || '',
+        display_name: model.display_name || '',
+        display_order: model.display_order || 0,
+        availability_enabled: model.availability_enabled === 1,
         name_rule: model.name_rule || 0,
         status: model.status === 1,
         sync_official: model.sync_official === 1,
@@ -398,6 +407,9 @@ export function ModelMutateDrawer({
         tags: [],
         vendor_id: undefined,
         endpoints: '',
+        display_name: '',
+        display_order: 0,
+        availability_enabled: true,
         name_rule: 0,
         status: true,
         sync_official: true,
@@ -420,6 +432,8 @@ export function ModelMutateDrawer({
           ...values,
           id: isEditing ? currentModelId : undefined,
           tags: Array.isArray(values.tags) ? values.tags.join(',') : '',
+          display_order: values.display_order || 0,
+          availability_enabled: values.availability_enabled ? 1 : 0,
           status: values.status ? 1 : 0,
           sync_official: values.sync_official ? 1 : 0,
         }
@@ -806,6 +820,86 @@ export function ModelMutateDrawer({
                       {t('Press Enter or comma to add tags')}
                     </FormDescription>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SideDrawerSection>
+
+            {/* Availability Display */}
+            <SideDrawerSection>
+              <h3 className='text-sm font-semibold'>
+                {t('Availability Display')}
+              </h3>
+
+              <FormField
+                control={form.control}
+                name='display_name'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Display name')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t('Leave empty to use the model name')}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Optional alias shown in user-facing model and availability views.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='display_order'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Display order')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        inputMode='numeric'
+                        value={field.value}
+                        onChange={(event) =>
+                          field.onChange(
+                            Number.parseInt(event.target.value, 10) || 0
+                          )
+                        }
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Lower numbers appear first in availability lists.')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='availability_enabled'
+                render={({ field }) => (
+                  <FormItem className={sideDrawerSwitchItemClassName()}>
+                    <div className='flex flex-col gap-0.5'>
+                      <FormLabel className='text-base'>
+                        {t('Show in availability metrics')}
+                      </FormLabel>
+                      <FormDescription>
+                        {t(
+                          'Controls whether this model appears in user-facing availability metrics.'
+                        )}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

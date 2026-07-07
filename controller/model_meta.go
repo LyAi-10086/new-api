@@ -79,14 +79,22 @@ func GetModelMeta(c *gin.Context) {
 
 // CreateModelMeta 新建模型
 func CreateModelMeta(c *gin.Context) {
+	rawBody, err := c.GetRawData()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	var m model.Model
-	if err := c.ShouldBindJSON(&m); err != nil {
+	if err := common.Unmarshal(rawBody, &m); err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	if m.ModelName == "" {
 		common.ApiErrorMsg(c, "模型名称不能为空")
 		return
+	}
+	if !jsonFieldExists(rawBody, "availability_enabled") {
+		m.AvailabilityEnabled = 1
 	}
 	// 名称冲突检查
 	if dup, err := model.IsModelNameDuplicated(0, m.ModelName); err != nil {
@@ -105,12 +113,26 @@ func CreateModelMeta(c *gin.Context) {
 	common.ApiSuccess(c, &m)
 }
 
+func jsonFieldExists(rawBody []byte, field string) bool {
+	var payload map[string]json.RawMessage
+	if err := common.Unmarshal(rawBody, &payload); err != nil {
+		return false
+	}
+	_, ok := payload[field]
+	return ok
+}
+
 // UpdateModelMeta 更新模型
 func UpdateModelMeta(c *gin.Context) {
 	statusOnly := c.Query("status_only") == "true"
 
+	rawBody, err := c.GetRawData()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	var m model.Model
-	if err := c.ShouldBindJSON(&m); err != nil {
+	if err := common.Unmarshal(rawBody, &m); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -126,6 +148,14 @@ func UpdateModelMeta(c *gin.Context) {
 			return
 		}
 	} else {
+		if !jsonFieldExists(rawBody, "availability_enabled") {
+			var existing model.Model
+			if err := model.DB.Select("availability_enabled").First(&existing, m.Id).Error; err != nil {
+				common.ApiError(c, err)
+				return
+			}
+			m.AvailabilityEnabled = existing.AvailabilityEnabled
+		}
 		// 名称冲突检查
 		if dup, err := model.IsModelNameDuplicated(m.Id, m.ModelName); err != nil {
 			common.ApiError(c, err)

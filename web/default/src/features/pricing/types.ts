@@ -32,6 +32,9 @@ export type PricingModel = {
   model_name: string
   description?: string
   icon?: string
+  display_name?: string
+  display_order?: number
+  availability_enabled?: number
   vendor_id?: number
   vendor_name?: string
   vendor_icon?: string

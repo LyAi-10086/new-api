@@ -266,7 +266,14 @@ export function ModelDetailsPerformance(props: { model: PricingModel }) {
               header: t('Group'),
               className: tableStyles.compactHeaderCell,
               cellClassName: tableStyles.compactCell,
-              cell: (perf) => <GroupBadge group={perf.group} size='sm' />,
+              cell: (perf) =>
+                perf.group === 'aggregate' ? (
+                  <span className='text-muted-foreground text-xs font-medium'>
+                    {t('Aggregate')}
+                  </span>
+                ) : (
+                  <GroupBadge group={perf.group} size='sm' />
+                ),
             },
             {
               id: 'tps',

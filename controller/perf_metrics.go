@@ -2,14 +2,37 @@ package controller
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 
+	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 )
+
+type perfModelSummaryResponse struct {
+	ModelName          string    `json:"model_name"`
+	DisplayName        string    `json:"display_name,omitempty"`
+	DisplayOrder       int       `json:"display_order"`
+	AvgLatencyMs       int64     `json:"avg_latency_ms"`
+	SuccessRate        float64   `json:"success_rate"`
+	AvgTps             float64   `json:"avg_tps"`
+	RecentSuccessRates []float64 `json:"recent_success_rates,omitempty"`
+}
+
+type perfSummaryAllResponse struct {
+	Models []perfModelSummaryResponse `json:"models"`
+}
+
+type perfMetricsResponse struct {
+	ModelName    string                    `json:"model_name"`
+	DisplayName  string                    `json:"display_name,omitempty"`
+	SeriesSchema string                    `json:"series_schema"`
+	Groups       []perfmetrics.GroupResult `json:"groups"`
+}
 
 func GetPerfMetricsSummary(c *gin.Context) {
 	hours := 24
@@ -29,9 +52,43 @@ func GetPerfMetricsSummary(c *gin.Context) {
 		return
 	}
 
+	availabilityMeta, err := model.GetModelAvailabilityMetaMap(lo.Map(result.Models, func(item perfmetrics.ModelSummary, _ int) string {
+		return item.ModelName
+	}))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	models := make([]perfModelSummaryResponse, 0, len(result.Models))
+	for _, item := range result.Models {
+		meta, ok := availabilityMeta[item.ModelName]
+		if !ok {
+			continue
+		}
+		models = append(models, perfModelSummaryResponse{
+			ModelName:          item.ModelName,
+			DisplayName:        meta.DisplayName,
+			DisplayOrder:       meta.DisplayOrder,
+			AvgLatencyMs:       item.AvgLatencyMs,
+			SuccessRate:        item.SuccessRate,
+			AvgTps:             item.AvgTps,
+			RecentSuccessRates: item.RecentSuccessRates,
+		})
+	}
+	sort.SliceStable(models, func(i, j int) bool {
+		if models[i].DisplayOrder == models[j].DisplayOrder {
+			return false
+		}
+		return models[i].DisplayOrder < models[j].DisplayOrder
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    result,
+		"data":    perfSummaryAllResponse{Models: models},
 	})
 }
 
@@ -52,6 +109,26 @@ func GetPerfMetrics(c *gin.Context) {
 		}
 	}
 
+	availabilityMeta, err := model.GetModelAvailabilityMetaMap([]string{modelName})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	meta, ok := availabilityMeta[modelName]
+	if !ok {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": perfMetricsResponse{
+				ModelName: modelName,
+				Groups:    []perfmetrics.GroupResult{},
+			},
+		})
+		return
+	}
+
 	result, err := perfmetrics.Query(perfmetrics.QueryParams{
 		Model: modelName,
 		Group: c.Query("group"),
@@ -69,7 +146,12 @@ func GetPerfMetrics(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    result,
+		"data": perfMetricsResponse{
+			ModelName:    result.ModelName,
+			DisplayName:  meta.DisplayName,
+			SeriesSchema: result.SeriesSchema,
+			Groups:       result.Groups,
+		},
 	})
 }
 

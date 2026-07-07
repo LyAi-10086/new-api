@@ -146,6 +146,31 @@ export function useModelsColumns(vendors: Vendor[] = []): ColumnDef<Model>[] {
       minSize: 200,
     },
 
+    // Display Name column
+    {
+      accessorKey: 'display_name',
+      header: t('Display name'),
+      meta: { mobileHidden: true },
+      cell: ({ row }) => {
+        const displayName = row.getValue('display_name') as string
+        if (!displayName) {
+          return <span className='text-muted-foreground text-xs'>-</span>
+        }
+
+        return (
+          <StatusBadge
+            label={displayName}
+            variant='neutral'
+            copyText={displayName}
+            size='sm'
+            className='-ml-1.5'
+          />
+        )
+      },
+      size: 160,
+      enableSorting: false,
+    },
+
     // Name Rule column
     {
       accessorKey: 'name_rule',
@@ -430,6 +455,33 @@ export function useModelsColumns(vendors: Vendor[] = []): ColumnDef<Model>[] {
         return false
       },
       size: 120,
+      enableSorting: false,
+    },
+
+    // Availability column
+    {
+      accessorKey: 'availability_enabled',
+      header: t('Availability'),
+      meta: { mobileHidden: true },
+      cell: ({ row }) => {
+        const enabled = row.getValue('availability_enabled') as number
+        const displayOrder = row.original.display_order || 0
+        return (
+          <div className='flex items-center gap-2'>
+            <StatusBadge
+              label={enabled === 1 ? t('Shown') : t('Hidden')}
+              variant={enabled === 1 ? 'success' : 'neutral'}
+              size='sm'
+              copyable={false}
+              className='-ml-1.5'
+            />
+            <span className='text-muted-foreground font-mono text-xs'>
+              #{displayOrder}
+            </span>
+          </div>
+        )
+      },
+      size: 150,
       enableSorting: false,
     },
 

@@ -41,6 +41,9 @@ export interface Model {
   tags?: string
   vendor_id?: number
   endpoints?: string
+  display_name?: string
+  display_order: number
+  availability_enabled: number
   status: number
   sync_official: number
   created_time: number
@@ -235,6 +238,9 @@ export const modelFormSchema = z.object({
   tags: z.array(z.string()).default([]),
   vendor_id: z.number().optional(),
   endpoints: z.string().default(''),
+  display_name: z.string().default(''),
+  display_order: z.number().default(0),
+  availability_enabled: z.boolean().default(true),
   name_rule: z.number().min(0).max(3).default(0),
   status: z.boolean().default(true),
   sync_official: z.boolean().default(true),

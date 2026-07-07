@@ -22,18 +22,21 @@ type BoundChannel struct {
 }
 
 type Model struct {
-	Id           int            `json:"id"`
-	ModelName    string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
-	Description  string         `json:"description,omitempty" gorm:"type:text"`
-	Icon         string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
-	Tags         string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
-	VendorID     int            `json:"vendor_id,omitempty" gorm:"index"`
-	Endpoints    string         `json:"endpoints,omitempty" gorm:"type:text"`
-	Status       int            `json:"status" gorm:"default:1"`
-	SyncOfficial int            `json:"sync_official" gorm:"default:1"`
-	CreatedTime  int64          `json:"created_time" gorm:"bigint"`
-	UpdatedTime  int64          `json:"updated_time" gorm:"bigint"`
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
+	Id                  int            `json:"id"`
+	ModelName           string         `json:"model_name" gorm:"size:128;not null;uniqueIndex:uk_model_name_delete_at,priority:1"`
+	Description         string         `json:"description,omitempty" gorm:"type:text"`
+	Icon                string         `json:"icon,omitempty" gorm:"type:varchar(128)"`
+	Tags                string         `json:"tags,omitempty" gorm:"type:varchar(255)"`
+	VendorID            int            `json:"vendor_id,omitempty" gorm:"index"`
+	Endpoints           string         `json:"endpoints,omitempty" gorm:"type:text"`
+	DisplayName         string         `json:"display_name,omitempty" gorm:"size:128"`
+	DisplayOrder        int            `json:"display_order" gorm:"default:0;index"`
+	AvailabilityEnabled int            `json:"availability_enabled" gorm:"default:1;index"`
+	Status              int            `json:"status" gorm:"default:1"`
+	SyncOfficial        int            `json:"sync_official" gorm:"default:1"`
+	CreatedTime         int64          `json:"created_time" gorm:"bigint"`
+	UpdatedTime         int64          `json:"updated_time" gorm:"bigint"`
+	DeletedAt           gorm.DeletedAt `json:"-" gorm:"index;uniqueIndex:uk_model_name_delete_at,priority:2"`
 
 	BoundChannels []BoundChannel `json:"bound_channels,omitempty" gorm:"-"`
 	EnableGroups  []string       `json:"enable_groups,omitempty" gorm:"-"`
@@ -52,6 +55,7 @@ func (mi *Model) Insert() error {
 	// 保存原始值（因为 Create 后可能被 GORM 的 default 标签覆盖为 1）
 	originalStatus := mi.Status
 	originalSyncOfficial := mi.SyncOfficial
+	originalAvailabilityEnabled := mi.AvailabilityEnabled
 
 	// 先创建记录（GORM 会对零值字段应用默认值）
 	if err := DB.Create(mi).Error; err != nil {
@@ -60,8 +64,9 @@ func (mi *Model) Insert() error {
 
 	// 使用保存的原始值进行更新，确保零值能正确保存
 	return DB.Model(&Model{}).Where("id = ?", mi.Id).Updates(map[string]interface{}{
-		"status":        originalStatus,
-		"sync_official": originalSyncOfficial,
+		"status":               originalStatus,
+		"sync_official":        originalSyncOfficial,
+		"availability_enabled": originalAvailabilityEnabled,
 	}).Error
 }
 
@@ -78,7 +83,7 @@ func (mi *Model) Update() error {
 	mi.UpdatedTime = common.GetTimestamp()
 	// 使用 Select 强制更新所有字段，包括零值
 	return DB.Model(&Model{}).Where("id = ?", mi.Id).
-		Select("model_name", "description", "icon", "tags", "vendor_id", "endpoints", "status", "sync_official", "name_rule", "updated_time").
+		Select("model_name", "description", "icon", "tags", "vendor_id", "endpoints", "display_name", "display_order", "availability_enabled", "status", "sync_official", "name_rule", "updated_time").
 		Updates(mi).Error
 }
 
@@ -192,12 +197,91 @@ func GetPreferredModelOwnerChannelTypes(modelNames []string, groups []string) (m
 	return result, nil
 }
 
+type ModelAvailabilityMeta struct {
+	ModelName    string
+	DisplayName  string
+	DisplayOrder int
+}
+
+func GetModelAvailabilityMetaMap(modelNames []string) (map[string]ModelAvailabilityMeta, error) {
+	result := make(map[string]ModelAvailabilityMeta)
+	modelNames = normalizeLookupValues(modelNames)
+	if len(modelNames) == 0 {
+		return result, nil
+	}
+
+	var metas []Model
+	if err := DB.Order("display_order ASC").Order("id ASC").Find(&metas).Error; err != nil {
+		return nil, err
+	}
+
+	exactMetas := make(map[string]*Model)
+	ruleMetas := make([]*Model, 0)
+	for i := range metas {
+		meta := &metas[i]
+		if strings.TrimSpace(meta.ModelName) == "" {
+			continue
+		}
+		if meta.NameRule == NameRuleExact {
+			exactMetas[meta.ModelName] = meta
+			continue
+		}
+		ruleMetas = append(ruleMetas, meta)
+	}
+
+	for _, modelName := range modelNames {
+		var selected *Model
+		if meta, ok := exactMetas[modelName]; ok {
+			selected = meta
+		} else {
+			for _, meta := range ruleMetas {
+				matched := false
+				switch meta.NameRule {
+				case NameRulePrefix:
+					matched = strings.HasPrefix(modelName, meta.ModelName)
+				case NameRuleSuffix:
+					matched = strings.HasSuffix(modelName, meta.ModelName)
+				case NameRuleContains:
+					matched = strings.Contains(modelName, meta.ModelName)
+				}
+				if matched {
+					selected = meta
+					break
+				}
+			}
+		}
+		if selected == nil {
+			// 未维护模型元数据时保持旧行为：继续展示原模型名。
+			// 只有管理员明确配置并关闭可用性展示时，才从用户侧性能/状态视图隐藏。
+			result[modelName] = ModelAvailabilityMeta{
+				ModelName:    modelName,
+				DisplayName:  modelName,
+				DisplayOrder: 0,
+			}
+			continue
+		}
+		if selected.Status != 1 || selected.AvailabilityEnabled != 1 {
+			continue
+		}
+		displayName := strings.TrimSpace(selected.DisplayName)
+		if displayName == "" {
+			displayName = modelName
+		}
+		result[modelName] = ModelAvailabilityMeta{
+			ModelName:    modelName,
+			DisplayName:  displayName,
+			DisplayOrder: selected.DisplayOrder,
+		}
+	}
+	return result, nil
+}
+
 func SearchModels(keyword string, vendor string, offset int, limit int) ([]*Model, int64, error) {
 	var models []*Model
 	db := DB.Model(&Model{})
 	if keyword != "" {
 		like := "%" + keyword + "%"
-		db = db.Where("model_name LIKE ? OR description LIKE ? OR tags LIKE ?", like, like, like)
+		db = db.Where("model_name LIKE ? OR display_name LIKE ? OR description LIKE ? OR tags LIKE ?", like, like, like, like)
 	}
 	if vendor != "" {
 		if vid, err := strconv.Atoi(vendor); err == nil {

@@ -29,6 +29,10 @@ import type { PricingModel } from '../types'
 // Filter Utilities
 // ----------------------------------------------------------------------------
 
+function getModelDisplayName(model: PricingModel): string {
+  return model.display_name || model.model_name || ''
+}
+
 /**
  * Filter models by search query
  */
@@ -42,6 +46,7 @@ export function filterBySearch(
   return models.filter(
     (m) =>
       m.model_name?.toLowerCase().includes(lowerQuery) ||
+      m.display_name?.toLowerCase().includes(lowerQuery) ||
       m.description?.toLowerCase().includes(lowerQuery) ||
       m.tags?.toLowerCase().includes(lowerQuery) ||
       m.vendor_name?.toLowerCase().includes(lowerQuery)
@@ -117,7 +122,7 @@ export function sortModels(
   switch (sortBy) {
     case SORT_OPTIONS.NAME:
       sorted.sort((a, b) =>
-        (a.model_name || '').localeCompare(b.model_name || '')
+        getModelDisplayName(a).localeCompare(getModelDisplayName(b))
       )
       break
     case SORT_OPTIONS.PRICE_LOW:
