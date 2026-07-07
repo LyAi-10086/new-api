@@ -189,6 +189,7 @@ perfmetrics.RecordRelaySample(relayInfo, false, 0)
 
 - 管理员页面仅管理员可见。
 - 管理员详细错误样本、渠道下钻、用户/令牌维度建议使用超级管理员权限。
+- 管理员可以配置“用户侧模型状态页展示哪些模型”，以及每个展示模型的用户侧名称/别名。
 - 用户页面仅登录用户可见。
 - 用户页面只返回当前用户可用模型范围内的脱敏状态。
 - 后端接口必须做权限校验，不能只依赖前端隐藏菜单。
@@ -407,6 +408,47 @@ auto:    样本不足
 - 权限：登录用户。
 - 风险：不能泄露渠道、错误码、平台总体流量和其他用户使用情况。
 
+### 3.5 用户侧展示范围与模型别名
+
+新增能力只影响“用户侧模型状态页”的展示，不改变 relay、计费、渠道选择、重试、模型映射和真实请求记录口径。
+
+管理员需要能完成两件事：
+
+- 控制哪些模型出现在用户侧 `模型状态` 页面。
+- 为用户侧展示设置名称/别名，例如把内部请求模型名 `gpt-5.4` 在某个分组下展示为 `旗舰模型 A`，或展示为管理员定义的 `分组+ID` 形式。
+
+第一版建议采用最小改动方案：
+
+- 继续用真实请求中的 `OriginModelName + UsingGroup` 查询 `perf_metrics`。
+- 新增一份“用户侧展示配置”，只在返回用户接口前做过滤和名称映射。
+- 展示配置不反向影响用户实际请求的 `model` 参数。
+- 不引入定时探测，不新增请求链路埋点，不把展示别名写入消费日志。
+
+建议配置维度：
+
+- `source_model_name`：真实请求模型名，仅管理员可见。
+- `source_group`：配置适用分组，仅管理员可见。
+- `public_model_id`：用户侧稳定展示 ID，可由管理员设置为 `分组+ID` 或其他不敏感 ID。
+- `display_name`：用户侧展示名称。
+- `visible`：是否在用户侧状态页展示。
+- `sort_order`：用户侧排序。
+- `status_enabled`：是否展示该模型状态；关闭后即使有样本也不返回。
+
+关键边界：
+
+- 用户接口先按当前用户可用模型和可访问分组过滤，再套用展示配置。
+- 用户接口只返回当前用户所属分组命中的展示项，不返回其他分组的配置和状态。
+- 如果管理员给不同分组配置了同名别名，用户侧只看到自己分组内的结果，不能通过接口枚举其他分组。
+- 如果别名不同于真实请求模型名，用户接口默认不返回 `source_model_name`，只返回 `public_model_id` 和 `display_name`。
+- 管理员页面可以看到 `source_model_name`、`source_group`、`public_model_id`、`display_name` 的映射，用于排障和配置。
+
+默认策略建议：
+
+- 未配置时，沿用“当前用户可用模型列表 + 原模型名展示”的现有行为，保证兼容。
+- 一旦某个分组启用显式展示配置，则该分组用户侧状态页只展示 `visible=true` 且 `status_enabled=true` 的配置项。
+- 同一分组内 `public_model_id` 必须唯一，避免详情页、缓存和前端选中状态混淆。
+- 不建议第一版支持多个真实模型合并成一个用户展示模型；如果必须合并，应作为第二阶段能力单独设计聚合口径。
+
 ## 4. 判定规则
 
 ### 4.1 样本口径
@@ -510,6 +552,8 @@ GET /api/admin/model-availability/models/:model
 GET /api/admin/model-availability/errors
 GET /api/admin/model-availability/channels
 GET /api/admin/model-availability/filters
+GET /api/admin/model-availability/public-display-settings
+PUT /api/admin/model-availability/public-display-settings
 ```
 
 用户接口：
@@ -535,6 +579,7 @@ GET /api/model-status/models/:model
 - 先查询 `perf_metrics` 和 `logs`。
 - 管理员接口返回详细排障信息。
 - 用户接口只返回脱敏摘要。
+- 用户侧展示配置只影响 `/api/model-status/*` 返回范围和展示名称，不影响真实模型统计口径。
 
 ### 5.2 查询来源
 
@@ -589,7 +634,8 @@ GET /api/model-status/models/:model
 
 输出：
 
-- 模型名。
+- 用户侧稳定展示 ID。
+- 用户侧展示名称。
 - 状态标签。
 - 速度标签。
 - 首响标签。
@@ -597,6 +643,13 @@ GET /api/model-status/models/:model
 - 数据窗口。
 
 用户状态接口必须先按现有用户可用模型逻辑过滤，只返回用户本来就能看到或使用的模型。即使某个隐藏模型有状态数据，也不能通过状态页暴露给普通用户。
+
+如果管理员配置了用户侧展示范围和别名，用户状态接口还必须：
+
+- 只返回当前用户分组命中的 `visible=true`、`status_enabled=true` 配置项。
+- 用 `source_model_name + source_group` 查询真实样本，再把结果映射成 `public_model_id + display_name`。
+- 不返回真实渠道、内部模型名、其他分组配置和未授权模型状态。
+- 对没有足够样本但允许展示的模型返回“样本不足”，而不是直接隐藏，除非管理员关闭展示。
 
 #### 渠道下钻
 
@@ -673,7 +726,8 @@ GET /api/model-status/models/:model
     "updated_at": 1783340000,
     "items": [
       {
-        "model_name": "gpt-5.4",
+        "public_model_id": "vip:model-a",
+        "display_name": "旗舰模型 A",
         "status": "available",
         "status_label": "可用",
         "latency_level": "normal",
@@ -690,6 +744,8 @@ GET /api/model-status/models/:model
 
 用户接口不返回：
 
+- `source_model_name`
+- `source_group`
 - `request_count`
 - `success_count`
 - `error_count`
@@ -728,7 +784,61 @@ GET /api/model-status/models/:model
 ModelAvailabilitySetting
 ```
 
-### 5.5 后续是否扩展 `perf_metrics`
+### 5.5 用户侧展示配置
+
+用户侧展示范围和别名建议先放进同一个配置项，避免第一版新增业务表。
+
+配置示例：
+
+```json
+{
+  "public_display_mode": "auto",
+  "groups": [
+    {
+      "group": "vip",
+      "explicit_only": true,
+      "items": [
+        {
+          "source_model_name": "gpt-5.4",
+          "public_model_id": "vip:model-a",
+          "display_name": "旗舰模型 A",
+          "visible": true,
+          "status_enabled": true,
+          "sort_order": 10
+        }
+      ]
+    }
+  ]
+}
+```
+
+字段说明：
+
+- `public_display_mode = auto`：未配置分组沿用当前用户可用模型列表和原模型名。
+- `explicit_only = true`：该分组启用白名单，只展示配置项。
+- `source_model_name` 和 `group` 只在管理员接口返回，用户接口不返回。
+- `public_model_id` 是用户侧稳定 ID，用于详情抽屉、前端缓存和路由参数。
+- `display_name` 是用户侧展示名称，可以是业务化名称，也可以是管理员定义的 `分组+ID`。
+- `visible=false` 表示用户侧不展示该模型。
+- `status_enabled=false` 表示保留配置但暂不展示状态。
+
+校验建议：
+
+- 同一 `group` 内 `public_model_id` 必须唯一。
+- `display_name` 不能为空。
+- `source_model_name` 必须来自现有可用模型或管理员确认的可请求模型。
+- 不允许通过用户接口按 `public_model_id` 反查 `source_model_name`。
+- 删除配置项不删除历史统计，只影响用户侧状态页返回。
+
+后续如果配置规模变大，或需要审计“谁修改了展示别名”，再考虑新增独立表：
+
+```text
+model_status_display_configs
+```
+
+但第一版不建议直接上表，先用配置项完成最小闭环。
+
+### 5.6 后续是否扩展 `perf_metrics`
 
 第一版不建议改 `perf_metrics` 表结构。
 
@@ -772,6 +882,7 @@ model_availability_metrics
 - `web/default/src/features/model-availability/components/model-health-detail.tsx`
 - `web/default/src/features/model-availability/components/error-samples-table.tsx`
 - `web/default/src/features/model-availability/components/channel-error-ranking.tsx`
+- `web/default/src/features/model-availability/components/public-display-settings.tsx`
 
 管理员路由建议：
 
@@ -823,6 +934,14 @@ model_availability_metrics
 - “当前时间窗口内暂无真实请求样本。”
 - “该模型样本不足，暂不判定可用性。”
 
+用户侧展示配置：
+
+- 在管理员模型可用性页面增加一个“用户侧展示”配置区域或标签页。
+- 配置表按 `分组 + 真实模型名` 展示来源，支持设置是否展示、用户侧展示 ID、展示名称、排序和是否启用状态。
+- 配置编辑页只面向管理员，允许看到真实模型名和分组；普通用户页面不复用这份字段结构。
+- 提供“按当前用户侧返回预览”的只读预览，帮助管理员确认某个分组用户最终会看到哪些名称。
+- 保存前校验同一分组内 `public_model_id` 唯一，避免用户详情页路由冲突。
+
 ### 6.3 用户页面交互
 
 用户页面不做排障工具，只做状态参考。
@@ -842,7 +961,7 @@ model_availability_metrics
 
 表格列建议：
 
-- 模型。
+- 模型展示名称。
 - 状态。
 - 响应速度。
 - 首响速度。
@@ -869,6 +988,8 @@ model_availability_metrics
 
 用户页面不要出现：
 
+- 真实内部模型名。
+- 其他分组的展示别名。
 - `错误码`
 - `状态码`
 - `渠道`
@@ -1098,8 +1219,10 @@ LiteLLM / Helicone 的网关埋点模型
 - 新增用户侧 `模型状态` 页面。
 - 新增 `/api/model-status/*` 脱敏接口。
 - 只展示当前用户可用模型。
+- 新增管理员侧“用户侧展示配置”，控制用户状态页展示哪些模型。
+- 支持管理员为用户侧模型设置展示 ID 和展示名称/别名。
 - 展示状态标签、速度标签、样本状态和更新时间。
-- 不展示渠道、错误码、状态码、request_id 和精确请求量。
+- 不展示真实内部模型名、其他分组别名、渠道、错误码、状态码、request_id 和精确请求量。
 
 这一阶段让用户能自行判断“现在用哪个模型更稳”，同时不暴露平台内部细节。
 
@@ -1220,6 +1343,28 @@ LiteLLM / Helicone 的网关埋点模型
 - 错误分布只查最近窗口。
 - 聚合优先用 `perf_metrics`，不要直接全表扫 `logs`。
 
+### 10.6 展示别名和真实模型口径混淆
+
+用户侧展示名称可能和真实请求模型名不同，容易带来排障混淆。
+
+处理方式：
+
+- 管理员页始终保留 `source_model_name + source_group -> public_model_id + display_name` 映射。
+- 用户页只展示映射后的 `display_name`，不展示真实模型名。
+- 日志、计费、统计仍使用真实请求模型名，避免影响已有账务和排障链路。
+- 同一分组内禁止重复 `public_model_id`。
+- 第一版不支持多个真实模型合并为一个展示模型，避免成功率和延迟口径不清。
+
+### 10.7 展示配置泄露其他分组
+
+如果用户接口返回所有展示配置，可能泄露其他分组的模型命名、可用模型范围或运营策略。
+
+处理方式：
+
+- 用户接口必须先识别当前用户分组，只返回当前用户可访问分组的展示结果。
+- 不返回 `source_group`、未命中的 `public_model_id`、隐藏模型和关闭状态展示的模型。
+- 管理员预览接口必须走管理员权限，不能和普通用户状态接口共用返回结构。
+
 ## 11. 验收标准
 
 管理员页面验收：
@@ -1238,12 +1383,24 @@ LiteLLM / Helicone 的网关埋点模型
 
 - 用户能进入“模型状态”页面。
 - 页面只展示当前用户可用模型。
+- 如果管理员启用了显式展示配置，页面只展示配置中允许展示的模型。
+- 用户看到的是管理员设置的展示名称/别名，而不是真实内部模型名。
 - 页面展示模型状态、速度、样本状态和更新时间。
 - 样本不足显示为“样本不足”，不显示为“不可用”。
+- 用户接口返回 `public_model_id` 和 `display_name`，不返回 `source_model_name` 和 `source_group`。
 - 用户接口不返回渠道、状态码、错误码、request_id、upstream_request_id。
 - 用户接口不返回精确请求数和精确错误数。
 - 普通用户无法访问管理员模型可用性接口。
 - 用户页面不出现内部排障信息。
+
+展示配置验收：
+
+- 管理员能按分组配置用户侧模型展示范围。
+- 管理员能为每个展示模型设置展示 ID、展示名称/别名、排序和启用状态。
+- 同一分组内重复的展示 ID 不能保存。
+- 关闭展示后，用户状态接口不再返回该模型。
+- 配置展示别名不影响真实请求、计费、日志和 `perf_metrics` 聚合。
+- 普通用户不能通过接口枚举其他分组的展示配置或隐藏模型。
 
 ## 12. 建议默认决定
 
@@ -1258,4 +1415,6 @@ LiteLLM / Helicone 的网关埋点模型
 - 以错误日志作为渠道排障口径。
 - 管理员接口和用户接口分开实现，不共用同一个返回结构。
 - 用户页面默认不展示精确成功率和请求数，只展示状态标签和区间提示。
+- 用户侧展示配置第一版走配置项，不新增表；未配置分组沿用现有可用模型展示。
+- 管理员可配置用户侧展示范围和展示别名，但不改变真实请求模型名。
 - 后续再和渠道告警、OpenTelemetry、P95/P99 指标联动。
