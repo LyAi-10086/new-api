@@ -10,7 +10,7 @@
 - 后端专用接口已存在：`GET /api/channel-alert/settings`、`PUT /api/channel-alert/settings`、`GET /api/channel-alert/events`、`GET /api/channel-alert/states`、`POST /api/channel-alert/test`，路由均在 RootAuth 下，测试邮件额外走 `CriticalRateLimit`。
 - 渠道级开关已接入新版渠道新增/编辑抽屉，保存到渠道 `settings` JSON（Go 字段为 `Channel.OtherSettings`，前端字段为 `settings`）里的 `channel_alert_enabled`。
 - `channel_alert_events` 与 `channel_alert_states` 两张表已在 `model/main.go` 的普通与快速迁移中注册。
-- 后端服务已实现异步失败观察、窗口计数、状态码/关键词/`channel:` 错误码匹配、冷却控制、邮件发送、敏感信息遮蔽、恢复通知和 30 天事件清理。
+- 后端服务已实现异步失败观察、窗口计数、状态码/关键词/`channel:` 错误码匹配、冷却控制、邮件发送、敏感信息遮蔽、恢复通知、恢复事件记录和 30 天事件清理。
 - 真实请求失败已从 relay 错误处理入口接入；定时检测失败和手动测试失败已从渠道测试入口接入，并受 `include_relay_errors`、`include_scheduled_tests`、`include_manual_tests` 控制。
 - 渠道重新启用时会触发恢复观察，满足条件时发送恢复邮件并关闭活动告警状态。
 - 新版系统设置的“路由可靠性”区域已经有渠道告警配置表单、测试告警按钮、最近事件表和活动状态表。
@@ -23,15 +23,15 @@
 - 事件表当前包含 `error_type`、`request_path`、`email_recipients` 等实现字段；原规划中的 `channel_tag`、`channel_group`、`count_in_window`、`window_seconds` 尚未作为事件列落地。
 - 状态表当前使用 `last_event_id` 与 `window_count`；原规划中的 `last_error_preview`、`event_count` 尚未作为状态列落地。
 - 冷却期内如果同渠道同规则仍处于 active 且未过冷却，当前实现会直接跳过重复事件记录，因此事件列表不是完整失败审计日志。
-- 恢复通知当前更新 `channel_alert_states` 并发送邮件，不额外写入一条 `recovery` 类型事件。
+- 恢复通知当前会更新 `channel_alert_states`，并写入一条 `recovery` 类型事件；如果邮件发送成功，会把该恢复事件标记为已发送。
 - 系统设置页已内嵌最近事件和活动状态表，暂未提供独立 `/channel-alerts` 页面、完整筛选页或手动清除状态入口。
-- 当前保存全局告警时允许收件人为空；运行时会跳过发送，测试接口会返回“收件人为空”的明确错误。是否在开启总开关时强制校验收件人，属于后续体验增强。
+- 当前保存全局告警时，前端和后端都会校验：开启总开关时收件人不能为空；测试接口也会在收件人为空或 SMTP 不可用时返回明确错误。
 
 ### 0.3 待增强
 
 - 渠道列表展示最近告警时间、最近恢复时间、最近原因预览和告警启用状态。
 - 独立告警事件页或更完整的系统设置列表，支持渠道、来源、规则、时间范围、发送状态筛选和分页。
-- 手动清除/确认告警状态，以及恢复事件入库，方便审计和运营闭环。
+- 手动清除/确认告警状态，方便审计和运营闭环。
 - 每渠道覆盖阈值、窗口、冷却时间，以及按标签批量启用告警。
 - 告警级别、渠道余额异常、响应时间持续超阈值、模型不可用比例等更细规则。
 - Webhook、Bark、Gotify 等非邮件通知方式。
@@ -40,14 +40,14 @@
 
 ### 0.4 验收入口
 
-- 全局配置：后台 `系统设置 -> 模型设置/路由可靠性 -> Channel alerts` 区域。
+- 全局配置：后台 `系统设置 -> 模型设置 -> 路由可靠性 -> Channel alerts` 区域。
 - 渠道级开关：新版渠道新增/编辑抽屉中的 `Channel alert` 开关。
 - 测试邮件：`POST /api/channel-alert/test`，或系统设置里的 `Send test alert` 按钮。
 - 事件查询：`GET /api/channel-alert/events?p=1&page_size=10`，也可在系统设置页的 `Recent alert events` 表查看。
 - 活动状态查询：`GET /api/channel-alert/states?active=true&p=1&page_size=10`，也可在系统设置页的 `Active alert states` 表查看。
 - 真实请求验收：全局告警开启、收件人有效、渠道 `channel_alert_enabled=true`，触发配置内状态码/关键词并达到窗口阈值后，应发送异常邮件并写入事件/状态。
 - 定时/手动测试验收：分别打开 `include_scheduled_tests` 或 `include_manual_tests`，让渠道测试产生命中规则的失败，达到阈值后应发送告警。
-- 恢复验收：已有 active 告警状态后，渠道重新启用并开启恢复通知，应发送恢复邮件并将 active 状态置为 false。
+- 恢复验收：已有 active 告警状态后，渠道重新启用并开启恢复通知，应发送恢复邮件、写入 recovery 事件并将 active 状态置为 false。
 
 ### 0.5 注意事项
 
@@ -312,7 +312,7 @@ channel_alert_events
 - 支持最近告警查看。
 - 便于排查误报。
 - 注意：冷却期内的重复失败当前不会继续写入事件表，因此它不是完整失败审计日志。
-- 待增强：如需要更完整的排查维度，可补 `channel_tag`、`channel_group`、`count_in_window`、`window_seconds`，或单独记录恢复事件。
+- 待增强：如需要更完整的排查维度，可补 `channel_tag`、`channel_group`、`count_in_window`、`window_seconds` 等字段。
 
 ### 4.4 告警状态表
 
@@ -395,7 +395,7 @@ ObserveChannelRecovery(params)
 
 - relay 请求确定渠道失败后，异步记录错误事件。
 - 渠道自动测试失败后，异步记录错误事件。
-- 渠道重新启用后，异步记录恢复观察；恢复通知当前不额外写入 `channel_alert_events`。
+- 渠道重新启用后，异步记录恢复观察；恢复通知会额外写入 `channel_alert_events`，`rule_key` 为 `recovery`。
 
 要求：
 
@@ -515,7 +515,7 @@ ObserveChannelRecovery(params)
 - 多收件人输入能正确校验。
 - 渠道编辑页可开启和关闭告警。
 - 测试告警能显示成功或失败原因。
-- 当前空收件人仍可保存；测试告警会提示失败，运行时跳过发送。后续可增强为开启总开关时阻止保存或提示。
+- 开启总开关时收件人不能为空；前端表单和后端 option 保存都会阻止空收件人配置。测试告警会提示收件人或 SMTP 链路失败原因。
 
 ### 7.3 生产安全验证
 
