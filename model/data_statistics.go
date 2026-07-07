@@ -27,10 +27,15 @@ type AdminDataStatisticsSummary struct {
 	RequestCount      int64   `json:"request_count"`
 	PromptTokens      int64   `json:"prompt_tokens"`
 	CompletionTokens  int64   `json:"completion_tokens"`
+	TotalTokens       int64   `json:"total_tokens"`
 	ActiveUsers       int64   `json:"active_users"`
 	ErrorCount        int64   `json:"error_count"`
+	ErrorRate         float64 `json:"error_rate"`
 	LoginCount        int64   `json:"login_count"`
 	LoginUsers        int64   `json:"login_users"`
+	AvgUseTime        float64 `json:"avg_use_time"`
+	StreamCount       int64   `json:"stream_count"`
+	StreamRatio       float64 `json:"stream_ratio"`
 	RegisteredUsers   int64   `json:"registered_users"`
 	TopupMoney        float64 `json:"topup_money"`
 	TopupAmount       int64   `json:"topup_amount"`
@@ -40,14 +45,23 @@ type AdminDataStatisticsSummary struct {
 }
 
 type AdminDataStatisticsTrendPoint struct {
-	Bucket          int64   `json:"bucket"`
-	ConsumeQuota    int64   `json:"consume_quota"`
-	RequestCount    int64   `json:"request_count"`
-	ActiveUsers     int64   `json:"active_users"`
-	ErrorCount      int64   `json:"error_count"`
-	TopupMoney      float64 `json:"topup_money"`
-	TopupAmount     int64   `json:"topup_amount"`
-	RegisteredUsers int64   `json:"registered_users"`
+	Bucket           int64   `json:"bucket"`
+	ConsumeQuota     int64   `json:"consume_quota"`
+	RequestCount     int64   `json:"request_count"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	TotalTokens      int64   `json:"total_tokens"`
+	ActiveUsers      int64   `json:"active_users"`
+	ErrorCount       int64   `json:"error_count"`
+	ErrorRate        float64 `json:"error_rate"`
+	LoginCount       int64   `json:"login_count"`
+	LoginUsers       int64   `json:"login_users"`
+	AvgUseTime       float64 `json:"avg_use_time"`
+	StreamCount      int64   `json:"stream_count"`
+	StreamRatio      float64 `json:"stream_ratio"`
+	TopupMoney       float64 `json:"topup_money"`
+	TopupAmount      int64   `json:"topup_amount"`
+	RegisteredUsers  int64   `json:"registered_users"`
 }
 
 type AdminDataStatisticsRankItem struct {
@@ -179,10 +193,13 @@ func GetAdminDataStatisticsSummary(filter AdminDataStatisticsFilter) (AdminDataS
 		RequestCount     int64
 		PromptTokens     int64
 		CompletionTokens int64
+		TotalTokens      int64
 		ActiveUsers      int64
+		AvgUseTime       float64
+		StreamCount      int64
 	}
 	if err := adminStatisticsConsumeQuery(filter).
-		Select("COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COUNT(DISTINCT user_id) AS active_users").
+		Select("COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COALESCE(SUM(prompt_tokens), 0) + COALESCE(SUM(completion_tokens), 0) AS total_tokens, COUNT(DISTINCT user_id) AS active_users, COALESCE(AVG(use_time), 0) AS avg_use_time, COALESCE(SUM(CASE WHEN is_stream THEN 1 ELSE 0 END), 0) AS stream_count").
 		Scan(&consume).Error; err != nil {
 		return summary, err
 	}
@@ -190,10 +207,19 @@ func GetAdminDataStatisticsSummary(filter AdminDataStatisticsFilter) (AdminDataS
 	summary.RequestCount = consume.RequestCount
 	summary.PromptTokens = consume.PromptTokens
 	summary.CompletionTokens = consume.CompletionTokens
+	summary.TotalTokens = consume.TotalTokens
 	summary.ActiveUsers = consume.ActiveUsers
+	summary.AvgUseTime = consume.AvgUseTime
+	summary.StreamCount = consume.StreamCount
+	if summary.RequestCount > 0 {
+		summary.StreamRatio = float64(summary.StreamCount) / float64(summary.RequestCount)
+	}
 
 	if err := adminStatisticsErrorQuery(filter).Count(&summary.ErrorCount).Error; err != nil {
 		return summary, err
+	}
+	if totalAttempts := summary.RequestCount + summary.ErrorCount; totalAttempts > 0 {
+		summary.ErrorRate = float64(summary.ErrorCount) / float64(totalAttempts)
 	}
 	var login struct {
 		LoginCount int64
@@ -252,7 +278,7 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 	logBucket := adminStatisticsLogBucketExpr(filter.Granularity)
 	var consumeRows []AdminDataStatisticsTrendPoint
 	if err := adminStatisticsConsumeQuery(filter).
-		Select(logBucket + " AS bucket, COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COUNT(DISTINCT user_id) AS active_users").
+		Select(logBucket + " AS bucket, COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COALESCE(SUM(prompt_tokens), 0) + COALESCE(SUM(completion_tokens), 0) AS total_tokens, COUNT(DISTINCT user_id) AS active_users, COALESCE(AVG(use_time), 0) AS avg_use_time, COALESCE(SUM(CASE WHEN is_stream THEN 1 ELSE 0 END), 0) AS stream_count").
 		Group("bucket").
 		Order("bucket asc").
 		Scan(&consumeRows).Error; err != nil {
@@ -262,7 +288,12 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 		point := ensurePoint(row.Bucket)
 		point.ConsumeQuota = row.ConsumeQuota
 		point.RequestCount = row.RequestCount
+		point.PromptTokens = row.PromptTokens
+		point.CompletionTokens = row.CompletionTokens
+		point.TotalTokens = row.TotalTokens
 		point.ActiveUsers = row.ActiveUsers
+		point.AvgUseTime = row.AvgUseTime
+		point.StreamCount = row.StreamCount
 	}
 
 	var errorRows []AdminDataStatisticsTrendPoint
@@ -275,6 +306,20 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 	}
 	for _, row := range errorRows {
 		ensurePoint(row.Bucket).ErrorCount = row.ErrorCount
+	}
+
+	var loginRows []AdminDataStatisticsTrendPoint
+	if err := adminStatisticsLoginQuery(filter).
+		Select(logBucket + " AS bucket, COUNT(*) AS login_count, COUNT(DISTINCT user_id) AS login_users").
+		Group("bucket").
+		Order("bucket asc").
+		Scan(&loginRows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range loginRows {
+		point := ensurePoint(row.Bucket)
+		point.LoginCount = row.LoginCount
+		point.LoginUsers = row.LoginUsers
 	}
 
 	mainBucket := adminStatisticsMainBucketExpr("complete_time", filter.Granularity)
@@ -322,6 +367,13 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 	sort.Slice(buckets, func(i, j int) bool { return buckets[i] < buckets[j] })
 	result := make([]AdminDataStatisticsTrendPoint, 0, len(buckets))
 	for _, bucket := range buckets {
+		point := points[bucket]
+		if point.RequestCount > 0 {
+			point.StreamRatio = float64(point.StreamCount) / float64(point.RequestCount)
+		}
+		if totalAttempts := point.RequestCount + point.ErrorCount; totalAttempts > 0 {
+			point.ErrorRate = float64(point.ErrorCount) / float64(totalAttempts)
+		}
 		result = append(result, *points[bucket])
 	}
 	return result, nil

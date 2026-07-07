@@ -21,7 +21,11 @@ import dayjs from 'dayjs'
 import {
   Activity,
   BarChart3,
+  Clock,
   CircleDollarSign,
+  Hash,
+  LogIn,
+  Radio,
   RefreshCcw,
   Search,
   Users,
@@ -57,7 +61,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatNumber, formatQuota } from '@/lib/format'
+import { formatNumber, formatQuota, formatUseTime } from '@/lib/format'
 
 import {
   getDataStatisticsFilters,
@@ -119,6 +123,13 @@ function formatMoney(value?: number) {
   return formatNumber(value ?? 0)
 }
 
+function formatRatio(value?: number) {
+  return Intl.NumberFormat(undefined, {
+    style: 'percent',
+    maximumFractionDigits: 2,
+  }).format(value ?? 0)
+}
+
 function formatBucket(bucket: number, granularity: 'day' | 'hour') {
   return dayjs.unix(bucket).format(
     granularity === 'hour' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
@@ -170,14 +181,20 @@ function TrendTable({
 
   return (
     <div className='overflow-x-auto rounded-lg border'>
-      <Table className='min-w-[900px]'>
+      <Table className='min-w-[1320px]'>
         <TableHeader>
           <TableRow>
             <TableHead>{t('Time')}</TableHead>
             <TableHead>{t('Consumption')}</TableHead>
             <TableHead>{t('Requests')}</TableHead>
+            <TableHead>{t('Total Tokens')}</TableHead>
             <TableHead>{t('Active Users')}</TableHead>
+            <TableHead>{t('Logins')}</TableHead>
+            <TableHead>{t('Avg Use Time')}</TableHead>
+            <TableHead>{t('Stream Requests')}</TableHead>
+            <TableHead>{t('Stream Ratio')}</TableHead>
             <TableHead>{t('Errors')}</TableHead>
+            <TableHead>{t('Error Rate')}</TableHead>
             <TableHead>{t('Top-up Money')}</TableHead>
             <TableHead>{t('Top-up Amount')}</TableHead>
             <TableHead>{t('New Users')}</TableHead>
@@ -191,8 +208,14 @@ function TrendTable({
               </TableCell>
               <TableCell>{formatQuota(item.consume_quota)}</TableCell>
               <TableCell>{formatNumber(item.request_count)}</TableCell>
+              <TableCell>{formatNumber(item.total_tokens)}</TableCell>
               <TableCell>{formatNumber(item.active_users)}</TableCell>
+              <TableCell>{formatNumber(item.login_count)}</TableCell>
+              <TableCell>{formatUseTime(item.avg_use_time)}</TableCell>
+              <TableCell>{formatNumber(item.stream_count)}</TableCell>
+              <TableCell>{formatRatio(item.stream_ratio)}</TableCell>
               <TableCell>{formatNumber(item.error_count)}</TableCell>
+              <TableCell>{formatRatio(item.error_rate)}</TableCell>
               <TableCell>{formatMoney(item.topup_money)}</TableCell>
               <TableCell>{formatNumber(item.topup_amount)}</TableCell>
               <TableCell>{formatNumber(item.registered_users)}</TableCell>
@@ -547,12 +570,30 @@ export function DataStatistics() {
                   icon={<CircleDollarSign className='size-5' />}
                 />
                 <StatCard
+                  title={t('Total Tokens')}
+                  value={formatNumber(summary?.total_tokens ?? 0)}
+                  description={`${t('Input Tokens')}: ${formatNumber(
+                    summary?.prompt_tokens ?? 0
+                  )} / ${t('Output Tokens')}: ${formatNumber(
+                    summary?.completion_tokens ?? 0
+                  )}`}
+                  icon={<Hash className='size-5' />}
+                />
+                <StatCard
                   title={t('Active Users')}
                   value={formatNumber(summary?.active_users ?? 0)}
                   description={t('{{count}} login users', {
                     count: formatNumber(summary?.login_users ?? 0),
                   })}
                   icon={<Users className='size-5' />}
+                />
+                <StatCard
+                  title={t('Logins')}
+                  value={formatNumber(summary?.login_count ?? 0)}
+                  description={t('{{count}} login users', {
+                    count: formatNumber(summary?.login_users ?? 0),
+                  })}
+                  icon={<LogIn className='size-5' />}
                 />
                 <StatCard
                   title={t('Top-up Money')}
@@ -563,11 +604,27 @@ export function DataStatistics() {
                   icon={<BarChart3 className='size-5' />}
                 />
                 <StatCard
-                  title={t('Errors')}
-                  value={formatNumber(summary?.error_count ?? 0)}
-                  description={t('{{count}} new users', {
-                    count: formatNumber(summary?.registered_users ?? 0),
+                  title={t('Avg Use Time')}
+                  value={formatUseTime(summary?.avg_use_time ?? 0)}
+                  description={t('{{count}} requests', {
+                    count: formatNumber(summary?.request_count ?? 0),
                   })}
+                  icon={<Clock className='size-5' />}
+                />
+                <StatCard
+                  title={t('Stream Requests')}
+                  value={formatNumber(summary?.stream_count ?? 0)}
+                  description={`${t('Stream Ratio')}: ${formatRatio(
+                    summary?.stream_ratio ?? 0
+                  )}`}
+                  icon={<Radio className='size-5' />}
+                />
+                <StatCard
+                  title={t('Error Rate')}
+                  value={formatRatio(summary?.error_rate ?? 0)}
+                  description={`${t('Errors')}: ${formatNumber(
+                    summary?.error_count ?? 0
+                  )}`}
                   icon={<Activity className='size-5' />}
                 />
               </div>

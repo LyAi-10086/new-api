@@ -43,10 +43,15 @@ export type DataStatisticsSummary = {
   request_count: number
   prompt_tokens: number
   completion_tokens: number
+  total_tokens: number
   active_users: number
   error_count: number
+  error_rate: number
   login_count: number
   login_users: number
+  avg_use_time: number
+  stream_count: number
+  stream_ratio: number
   registered_users: number
   topup_money: number
   topup_amount: number
@@ -59,8 +64,17 @@ export type DataStatisticsTrendPoint = {
   bucket: number
   consume_quota: number
   request_count: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
   active_users: number
   error_count: number
+  error_rate: number
+  login_count: number
+  login_users: number
+  avg_use_time: number
+  stream_count: number
+  stream_ratio: number
   topup_money: number
   topup_amount: number
   registered_users: number
