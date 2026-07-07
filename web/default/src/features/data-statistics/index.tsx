@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Clock,
   CircleDollarSign,
@@ -30,12 +31,28 @@ import {
   Search,
   Users,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart'
 import {
   Card,
   CardContent,
@@ -70,6 +87,7 @@ import {
   getDataStatisticsTrends,
 } from './api'
 import type {
+  DataStatisticsDeltaRate,
   DataStatisticsQuery,
   DataStatisticsRankItem,
   DataStatisticsTrendPoint,
@@ -136,16 +154,56 @@ function formatBucket(bucket: number, granularity: 'day' | 'hour') {
   )
 }
 
+function formatShortBucket(bucket: number, granularity: 'day' | 'hour') {
+  return dayjs
+    .unix(bucket)
+    .format(granularity === 'hour' ? 'MM-DD HH:mm' : 'MM-DD')
+}
+
+function formatDeltaRate(rate?: number | null) {
+  if (rate == null) return undefined
+  return Intl.NumberFormat(undefined, {
+    style: 'percent',
+    maximumFractionDigits: 2,
+  }).format(rate)
+}
+
+function DeltaBadge({ rate }: { rate?: number | null }) {
+  const { t } = useTranslation()
+  if (rate === undefined) return null
+  const isNew = rate === null
+  const isPositive = typeof rate === 'number' && rate > 0
+  const isNegative = typeof rate === 'number' && rate < 0
+  return (
+    <span
+      className={[
+        'inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-xs font-medium',
+        isNew
+          ? 'bg-chart-1/10 text-chart-1'
+          : isPositive
+            ? 'bg-chart-2/10 text-chart-2'
+            : isNegative
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-muted text-muted-foreground',
+      ].join(' ')}
+    >
+      {isNew ? t('New') : formatDeltaRate(rate)}
+    </span>
+  )
+}
+
 function StatCard({
   title,
   value,
   description,
   icon,
+  deltaRate,
 }: {
   title: string
   value: ReactNode
   description: string
   icon: ReactNode
+  deltaRate?: number | null
 }) {
   return (
     <Card>
@@ -153,6 +211,7 @@ function StatCard({
         <div className='min-w-0 space-y-1'>
           <CardDescription>{title}</CardDescription>
           <CardTitle className='truncate text-xl'>{value}</CardTitle>
+          <DeltaBadge rate={deltaRate} />
         </div>
         <div className='text-muted-foreground shrink-0'>{icon}</div>
       </CardHeader>
@@ -160,6 +219,406 @@ function StatCard({
         <p className='text-muted-foreground truncate text-xs'>{description}</p>
       </CardContent>
     </Card>
+  )
+}
+
+type TrendChartDatum = {
+  bucket: number
+  time: string
+  short_time: string
+  registered_users: number
+  total_users: number
+  active_users: number
+  login_users: number
+  topup_money: number
+  topup_count: number
+  consume_quota: number
+  request_count: number
+  total_tokens: number
+  error_count: number
+  error_rate_percent: number
+  avg_use_time: number
+  negative_quota_count: number
+}
+
+function buildTrendChartData(
+  items: DataStatisticsTrendPoint[],
+  granularity: 'day' | 'hour'
+): TrendChartDatum[] {
+  return items.map((item) => ({
+    bucket: item.bucket,
+    time: formatBucket(item.bucket, granularity),
+    short_time: formatShortBucket(item.bucket, granularity),
+    registered_users: item.registered_users ?? 0,
+    total_users: item.total_users ?? 0,
+    active_users: item.active_users ?? 0,
+    login_users: item.login_users ?? 0,
+    topup_money: item.topup_money ?? 0,
+    topup_count: item.topup_count ?? 0,
+    consume_quota: item.consume_quota ?? 0,
+    request_count: item.request_count ?? 0,
+    total_tokens: item.total_tokens ?? 0,
+    error_count: item.error_count ?? 0,
+    error_rate_percent: (item.error_rate ?? 0) * 100,
+    avg_use_time: item.avg_use_time ?? 0,
+    negative_quota_count: item.negative_quota_count ?? 0,
+  }))
+}
+
+function StatisticsChartCard({
+  title,
+  description,
+  config,
+  children,
+}: {
+  title: string
+  description: string
+  config: ChartConfig
+  children: ComponentProps<typeof ChartContainer>['children']
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={config}
+          className='aspect-auto h-72 w-full'
+          initialDimension={{ width: 640, height: 288 }}
+        >
+          {children}
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  )
+}
+
+function EmptyChartState() {
+  const { t } = useTranslation()
+  return (
+    <div className='text-muted-foreground flex h-72 items-center justify-center rounded-lg border text-sm'>
+      {t('No statistics data found')}
+    </div>
+  )
+}
+
+function UserTrendChart({
+  data,
+}: {
+  data: TrendChartDatum[]
+}) {
+  const { t } = useTranslation()
+  const config = {
+    registered_users: {
+      label: t('New Users'),
+      color: 'var(--chart-1)',
+    },
+    total_users: {
+      label: t('Total Users'),
+      color: 'var(--chart-2)',
+    },
+    active_users: {
+      label: t('Active Users'),
+      color: 'var(--chart-3)',
+    },
+  } satisfies ChartConfig
+
+  if (data.length === 0) return <EmptyChartState />
+
+  return (
+    <StatisticsChartCard
+      title={t('User Growth Trend')}
+      description={t('New users, total users, and active users over time.')}
+      config={config}
+    >
+      <ComposedChart data={data} margin={{ left: 8, right: 8, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey='short_time'
+          tickLine={false}
+          axisLine={false}
+          minTickGap={24}
+        />
+        <YAxis yAxisId='left' tickLine={false} axisLine={false} width={44} />
+        <YAxis
+          yAxisId='right'
+          orientation='right'
+          tickLine={false}
+          axisLine={false}
+          width={44}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.time}
+            />
+          }
+        />
+        <ChartLegend content={<ChartLegendContent />} />
+        <Bar
+          yAxisId='left'
+          dataKey='registered_users'
+          fill='var(--color-registered_users)'
+          radius={[4, 4, 0, 0]}
+        />
+        <Line
+          yAxisId='right'
+          type='monotone'
+          dataKey='total_users'
+          stroke='var(--color-total_users)'
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          yAxisId='left'
+          type='monotone'
+          dataKey='active_users'
+          stroke='var(--color-active_users)'
+          strokeWidth={2}
+          dot={false}
+        />
+      </ComposedChart>
+    </StatisticsChartCard>
+  )
+}
+
+function RevenueTrendChart({
+  data,
+}: {
+  data: TrendChartDatum[]
+}) {
+  const { t } = useTranslation()
+  const config = {
+    topup_money: {
+      label: t('Top-up Money'),
+      color: 'var(--chart-2)',
+    },
+    topup_count: {
+      label: t('Top-up Count'),
+      color: 'var(--chart-1)',
+    },
+  } satisfies ChartConfig
+
+  if (data.length === 0) return <EmptyChartState />
+
+  return (
+    <StatisticsChartCard
+      title={t('Revenue Trend')}
+      description={t('Successful top-up money and top-up count over time.')}
+      config={config}
+    >
+      <ComposedChart data={data} margin={{ left: 8, right: 8, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey='short_time'
+          tickLine={false}
+          axisLine={false}
+          minTickGap={24}
+        />
+        <YAxis yAxisId='left' tickLine={false} axisLine={false} width={52} />
+        <YAxis
+          yAxisId='right'
+          orientation='right'
+          tickLine={false}
+          axisLine={false}
+          width={44}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.time}
+            />
+          }
+        />
+        <ChartLegend content={<ChartLegendContent />} />
+        <Bar
+          yAxisId='left'
+          dataKey='topup_money'
+          fill='var(--color-topup_money)'
+          radius={[4, 4, 0, 0]}
+        />
+        <Line
+          yAxisId='right'
+          type='monotone'
+          dataKey='topup_count'
+          stroke='var(--color-topup_count)'
+          strokeWidth={2}
+          dot={false}
+        />
+      </ComposedChart>
+    </StatisticsChartCard>
+  )
+}
+
+function ConsumptionTrendChart({
+  data,
+}: {
+  data: TrendChartDatum[]
+}) {
+  const { t } = useTranslation()
+  const config = {
+    request_count: {
+      label: t('Requests'),
+      color: 'var(--chart-3)',
+    },
+    consume_quota: {
+      label: t('Consumption'),
+      color: 'var(--chart-1)',
+    },
+    total_tokens: {
+      label: t('Total Tokens'),
+      color: 'var(--chart-2)',
+    },
+  } satisfies ChartConfig
+
+  if (data.length === 0) return <EmptyChartState />
+
+  return (
+    <StatisticsChartCard
+      title={t('Consumption Trend')}
+      description={t('Consumed quota, requests, and token usage over time.')}
+      config={config}
+    >
+      <ComposedChart data={data} margin={{ left: 8, right: 8, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey='short_time'
+          tickLine={false}
+          axisLine={false}
+          minTickGap={24}
+        />
+        <YAxis yAxisId='left' tickLine={false} axisLine={false} width={52} />
+        <YAxis
+          yAxisId='right'
+          orientation='right'
+          tickLine={false}
+          axisLine={false}
+          width={52}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.time}
+            />
+          }
+        />
+        <ChartLegend content={<ChartLegendContent />} />
+        <Bar
+          yAxisId='right'
+          dataKey='request_count'
+          fill='var(--color-request_count)'
+          radius={[4, 4, 0, 0]}
+        />
+        <Line
+          yAxisId='left'
+          type='monotone'
+          dataKey='consume_quota'
+          stroke='var(--color-consume_quota)'
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          yAxisId='left'
+          type='monotone'
+          dataKey='total_tokens'
+          stroke='var(--color-total_tokens)'
+          strokeWidth={2}
+          dot={false}
+        />
+      </ComposedChart>
+    </StatisticsChartCard>
+  )
+}
+
+function QualityTrendChart({
+  data,
+}: {
+  data: TrendChartDatum[]
+}) {
+  const { t } = useTranslation()
+  const config = {
+    error_count: {
+      label: t('Errors'),
+      color: 'var(--chart-5)',
+    },
+    error_rate_percent: {
+      label: t('Error Rate'),
+      color: 'var(--chart-1)',
+    },
+    avg_use_time: {
+      label: t('Avg Use Time'),
+      color: 'var(--chart-2)',
+    },
+    negative_quota_count: {
+      label: t('Negative Quota Records'),
+      color: 'var(--chart-4)',
+    },
+  } satisfies ChartConfig
+
+  if (data.length === 0) return <EmptyChartState />
+
+  return (
+    <StatisticsChartCard
+      title={t('Quality Trend')}
+      description={t('Errors, error rate, average latency, and billing anomalies.')}
+      config={config}
+    >
+      <ComposedChart data={data} margin={{ left: 8, right: 8, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey='short_time'
+          tickLine={false}
+          axisLine={false}
+          minTickGap={24}
+        />
+        <YAxis yAxisId='left' tickLine={false} axisLine={false} width={44} />
+        <YAxis
+          yAxisId='right'
+          orientation='right'
+          tickLine={false}
+          axisLine={false}
+          width={44}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.time}
+            />
+          }
+        />
+        <ChartLegend content={<ChartLegendContent />} />
+        <Bar
+          yAxisId='left'
+          dataKey='error_count'
+          fill='var(--color-error_count)'
+          radius={[4, 4, 0, 0]}
+        />
+        <Bar
+          yAxisId='left'
+          dataKey='negative_quota_count'
+          fill='var(--color-negative_quota_count)'
+          radius={[4, 4, 0, 0]}
+        />
+        <Line
+          yAxisId='right'
+          type='monotone'
+          dataKey='error_rate_percent'
+          stroke='var(--color-error_rate_percent)'
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          yAxisId='right'
+          type='monotone'
+          dataKey='avg_use_time'
+          stroke='var(--color-avg_use_time)'
+          strokeWidth={2}
+          dot={false}
+        />
+      </ComposedChart>
+    </StatisticsChartCard>
   )
 }
 
@@ -197,7 +656,10 @@ function TrendTable({
             <TableHead>{t('Error Rate')}</TableHead>
             <TableHead>{t('Top-up Money')}</TableHead>
             <TableHead>{t('Top-up Amount')}</TableHead>
+            <TableHead>{t('Top-up Count')}</TableHead>
             <TableHead>{t('New Users')}</TableHead>
+            <TableHead>{t('Total Users')}</TableHead>
+            <TableHead>{t('Negative Quota Records')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -218,7 +680,10 @@ function TrendTable({
               <TableCell>{formatRatio(item.error_rate)}</TableCell>
               <TableCell>{formatMoney(item.topup_money)}</TableCell>
               <TableCell>{formatNumber(item.topup_amount)}</TableCell>
+              <TableCell>{formatNumber(item.topup_count)}</TableCell>
               <TableCell>{formatNumber(item.registered_users)}</TableCell>
+              <TableCell>{formatNumber(item.total_users)}</TableCell>
+              <TableCell>{formatNumber(item.negative_quota_count)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -236,7 +701,7 @@ function RankingTable({
   title: string
   description: string
   items: DataStatisticsRankItem[]
-  metric: 'consume' | 'topup' | 'balance'
+  metric: 'consume' | 'topup' | 'balance' | 'error'
 }) {
   const { t } = useTranslation()
 
@@ -266,6 +731,7 @@ function RankingTable({
                   {metric === 'topup' && (
                     <>
                       <TableHead>{t('Top-up Money')}</TableHead>
+                      <TableHead>{t('Top-up Count')}</TableHead>
                       <TableHead>{t('Top-up Amount')}</TableHead>
                     </>
                   )}
@@ -274,6 +740,9 @@ function RankingTable({
                       <TableHead>{t('Balance')}</TableHead>
                       <TableHead>{t('Used')}</TableHead>
                     </>
+                  )}
+                  {metric === 'error' && (
+                    <TableHead>{t('Errors')}</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -292,6 +761,7 @@ function RankingTable({
                     {metric === 'topup' && (
                       <>
                         <TableCell>{formatMoney(item.topup_money)}</TableCell>
+                        <TableCell>{formatNumber(item.topup_count ?? 0)}</TableCell>
                         <TableCell>{formatNumber(item.topup_amount ?? 0)}</TableCell>
                       </>
                     )}
@@ -300,6 +770,9 @@ function RankingTable({
                         <TableCell>{formatQuota(item.current_balance ?? 0)}</TableCell>
                         <TableCell>{formatQuota(item.used_quota ?? 0)}</TableCell>
                       </>
+                    )}
+                    {metric === 'error' && (
+                      <TableCell>{formatNumber(item.error_count ?? 0)}</TableCell>
                     )}
                   </TableRow>
                 ))}
@@ -336,11 +809,42 @@ export function DataStatistics() {
   })
 
   const filterOptions = filtersQuery.data?.data
-  const summary = summaryQuery.data?.data.summary
+  const summaryPayload = summaryQuery.data?.data
+  const summary = summaryPayload?.summary
+  const deltaRate = summaryPayload?.delta_rate as
+    | DataStatisticsDeltaRate
+    | undefined
   const trendItems = trendsQuery.data?.data.items ?? []
+  const trendChartData = useMemo(
+    () => buildTrendChartData(trendItems, applied.granularity),
+    [trendItems, applied.granularity]
+  )
   const rankings = rankingsQuery.data?.data.rankings
   const isLoading =
     summaryQuery.isLoading || trendsQuery.isLoading || rankingsQuery.isLoading
+
+  const applyQuickRange = (range: 'today' | 'yesterday' | '7d' | '30d' | '90d') => {
+    const now = dayjs()
+    let start = now.subtract(7, 'day')
+    let end = now
+    if (range === 'today') {
+      start = now.startOf('day')
+      end = now
+    } else if (range === 'yesterday') {
+      start = now.subtract(1, 'day').startOf('day')
+      end = now.subtract(1, 'day').endOf('day')
+    } else if (range === '30d') {
+      start = now.subtract(30, 'day')
+    } else if (range === '90d') {
+      start = now.subtract(90, 'day')
+    }
+    setDraft((current) => ({
+      ...current,
+      start_time: start.format('YYYY-MM-DDTHH:mm'),
+      end_time: end.format('YYYY-MM-DDTHH:mm'),
+      granularity: range === 'today' || range === 'yesterday' ? 'hour' : 'day',
+    }))
+  }
 
   const refresh = () => {
     filtersQuery.refetch()
@@ -381,6 +885,48 @@ export function DataStatistics() {
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-3 md:grid-cols-4 xl:grid-cols-8'>
+              <div className='flex flex-wrap gap-2 md:col-span-4 xl:col-span-8'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => applyQuickRange('today')}
+                >
+                  {t('Today')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => applyQuickRange('yesterday')}
+                >
+                  {t('Yesterday')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => applyQuickRange('7d')}
+                >
+                  {t('Last 7 days')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => applyQuickRange('30d')}
+                >
+                  {t('Last 30 days')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => applyQuickRange('90d')}
+                >
+                  {t('Last 90 days')}
+                </Button>
+              </div>
               <div className='space-y-1.5 md:col-span-2'>
                 <Label htmlFor='statistics-start-time'>{t('Start Time')}</Label>
                 <Input
@@ -562,12 +1108,29 @@ export function DataStatistics() {
             <>
               <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
                 <StatCard
+                  title={t('Total Users')}
+                  value={formatNumber(summary?.total_users ?? 0)}
+                  description={t('{{count}} new users', {
+                    count: formatNumber(summary?.registered_users ?? 0),
+                  })}
+                  icon={<Users className='size-5' />}
+                  deltaRate={deltaRate?.total_users}
+                />
+                <StatCard
+                  title={t('New Users')}
+                  value={formatNumber(summary?.registered_users ?? 0)}
+                  description={t('New users in the selected range')}
+                  icon={<Users className='size-5' />}
+                  deltaRate={deltaRate?.registered_users}
+                />
+                <StatCard
                   title={t('Consumption')}
                   value={formatQuota(summary?.consume_quota ?? 0)}
                   description={t('{{count}} requests', {
                     count: formatNumber(summary?.request_count ?? 0),
                   })}
                   icon={<CircleDollarSign className='size-5' />}
+                  deltaRate={deltaRate?.consume_quota}
                 />
                 <StatCard
                   title={t('Total Tokens')}
@@ -578,6 +1141,7 @@ export function DataStatistics() {
                     summary?.completion_tokens ?? 0
                   )}`}
                   icon={<Hash className='size-5' />}
+                  deltaRate={deltaRate?.total_tokens}
                 />
                 <StatCard
                   title={t('Active Users')}
@@ -586,6 +1150,7 @@ export function DataStatistics() {
                     count: formatNumber(summary?.login_users ?? 0),
                   })}
                   icon={<Users className='size-5' />}
+                  deltaRate={deltaRate?.active_users}
                 />
                 <StatCard
                   title={t('Logins')}
@@ -594,6 +1159,7 @@ export function DataStatistics() {
                     count: formatNumber(summary?.login_users ?? 0),
                   })}
                   icon={<LogIn className='size-5' />}
+                  deltaRate={deltaRate?.login_count}
                 />
                 <StatCard
                   title={t('Top-up Money')}
@@ -602,6 +1168,30 @@ export function DataStatistics() {
                     count: formatNumber(summary?.topup_amount ?? 0),
                   })}
                   icon={<BarChart3 className='size-5' />}
+                  deltaRate={deltaRate?.topup_money}
+                />
+                <StatCard
+                  title={t('Top-up Count')}
+                  value={formatNumber(summary?.topup_count ?? 0)}
+                  description={t('Successful top-up orders')}
+                  icon={<BarChart3 className='size-5' />}
+                  deltaRate={deltaRate?.topup_count}
+                />
+                <StatCard
+                  title={t('Current Balance')}
+                  value={formatQuota(summary?.current_balance ?? 0)}
+                  description={t('Current total user balance')}
+                  icon={<CircleDollarSign className='size-5' />}
+                  deltaRate={deltaRate?.current_balance}
+                />
+                <StatCard
+                  title={t('Total Used Quota')}
+                  value={formatQuota(summary?.total_used_quota ?? 0)}
+                  description={t('{{count}} total requests', {
+                    count: formatNumber(summary?.total_request_count ?? 0),
+                  })}
+                  icon={<Hash className='size-5' />}
+                  deltaRate={deltaRate?.total_used_quota}
                 />
                 <StatCard
                   title={t('Avg Use Time')}
@@ -610,6 +1200,7 @@ export function DataStatistics() {
                     count: formatNumber(summary?.request_count ?? 0),
                   })}
                   icon={<Clock className='size-5' />}
+                  deltaRate={deltaRate?.avg_use_time}
                 />
                 <StatCard
                   title={t('Stream Requests')}
@@ -618,6 +1209,7 @@ export function DataStatistics() {
                     summary?.stream_ratio ?? 0
                   )}`}
                   icon={<Radio className='size-5' />}
+                  deltaRate={deltaRate?.stream_count}
                 />
                 <StatCard
                   title={t('Error Rate')}
@@ -626,7 +1218,24 @@ export function DataStatistics() {
                     summary?.error_count ?? 0
                   )}`}
                   icon={<Activity className='size-5' />}
+                  deltaRate={deltaRate?.error_rate}
                 />
+                <StatCard
+                  title={t('Negative Quota Records')}
+                  value={formatNumber(summary?.negative_quota_count ?? 0)}
+                  description={`${t('Negative Quota Sum')}: ${formatQuota(
+                    summary?.negative_quota_sum ?? 0
+                  )}`}
+                  icon={<AlertTriangle className='size-5' />}
+                  deltaRate={deltaRate?.negative_quota_count}
+                />
+              </div>
+
+              <div className='grid gap-4 xl:grid-cols-2'>
+                <UserTrendChart data={trendChartData} />
+                <RevenueTrendChart data={trendChartData} />
+                <ConsumptionTrendChart data={trendChartData} />
+                <QualityTrendChart data={trendChartData} />
               </div>
 
               <Card>
@@ -680,6 +1289,24 @@ export function DataStatistics() {
                   description={t('Top users by current balance.')}
                   items={rankings?.balance_users ?? []}
                   metric='balance'
+                />
+                <RankingTable
+                  title={t('Error Model Ranking')}
+                  description={t('Top models by error count.')}
+                  items={rankings?.error_models ?? []}
+                  metric='error'
+                />
+                <RankingTable
+                  title={t('Error Channel Ranking')}
+                  description={t('Top channels by error count.')}
+                  items={rankings?.error_channels ?? []}
+                  metric='error'
+                />
+                <RankingTable
+                  title={t('Payment Provider Ranking')}
+                  description={t('Top payment providers by successful recharge.')}
+                  items={rankings?.payment_providers ?? []}
+                  metric='topup'
                 />
               </div>
             </>

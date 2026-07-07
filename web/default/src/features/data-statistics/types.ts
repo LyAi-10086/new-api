@@ -52,13 +52,21 @@ export type DataStatisticsSummary = {
   avg_use_time: number
   stream_count: number
   stream_ratio: number
+  negative_quota_count: number
+  negative_quota_sum: number
   registered_users: number
+  total_users: number
   topup_money: number
   topup_amount: number
+  topup_count: number
   current_balance: number
   total_used_quota: number
   total_request_count: number
 }
+
+export type DataStatisticsDeltaRate = Partial<
+  Record<keyof DataStatisticsSummary, number | null>
+>
 
 export type DataStatisticsTrendPoint = {
   bucket: number
@@ -75,9 +83,13 @@ export type DataStatisticsTrendPoint = {
   avg_use_time: number
   stream_count: number
   stream_ratio: number
+  negative_quota_count: number
+  negative_quota_sum: number
   topup_money: number
   topup_amount: number
+  topup_count: number
   registered_users: number
+  total_users: number
 }
 
 export type DataStatisticsRankItem = {
@@ -88,8 +100,10 @@ export type DataStatisticsRankItem = {
   request_count?: number
   prompt_tokens?: number
   completion_tokens?: number
+  error_count?: number
   topup_money?: number
   topup_amount?: number
+  topup_count?: number
   current_balance?: number
   used_quota?: number
 }
@@ -101,6 +115,9 @@ export type DataStatisticsRankings = {
   channels: DataStatisticsRankItem[]
   topup_users: DataStatisticsRankItem[]
   balance_users: DataStatisticsRankItem[]
+  error_models: DataStatisticsRankItem[]
+  error_channels: DataStatisticsRankItem[]
+  payment_providers: DataStatisticsRankItem[]
 }
 
 export type DataStatisticsFilterOption = {
@@ -121,6 +138,9 @@ export type DataStatisticsSummaryResponse = {
   data: {
     filter: DataStatisticsFilter
     summary: DataStatisticsSummary
+    previous_summary?: DataStatisticsSummary
+    delta?: DataStatisticsSummary
+    delta_rate?: DataStatisticsDeltaRate
   }
 }
 

@@ -23,45 +23,53 @@ type AdminDataStatisticsFilter struct {
 }
 
 type AdminDataStatisticsSummary struct {
-	ConsumeQuota      int64   `json:"consume_quota"`
-	RequestCount      int64   `json:"request_count"`
-	PromptTokens      int64   `json:"prompt_tokens"`
-	CompletionTokens  int64   `json:"completion_tokens"`
-	TotalTokens       int64   `json:"total_tokens"`
-	ActiveUsers       int64   `json:"active_users"`
-	ErrorCount        int64   `json:"error_count"`
-	ErrorRate         float64 `json:"error_rate"`
-	LoginCount        int64   `json:"login_count"`
-	LoginUsers        int64   `json:"login_users"`
-	AvgUseTime        float64 `json:"avg_use_time"`
-	StreamCount       int64   `json:"stream_count"`
-	StreamRatio       float64 `json:"stream_ratio"`
-	RegisteredUsers   int64   `json:"registered_users"`
-	TopupMoney        float64 `json:"topup_money"`
-	TopupAmount       int64   `json:"topup_amount"`
-	CurrentBalance    int64   `json:"current_balance"`
-	TotalUsedQuota    int64   `json:"total_used_quota"`
-	TotalRequestCount int64   `json:"total_request_count"`
+	ConsumeQuota       int64   `json:"consume_quota"`
+	RequestCount       int64   `json:"request_count"`
+	PromptTokens       int64   `json:"prompt_tokens"`
+	CompletionTokens   int64   `json:"completion_tokens"`
+	TotalTokens        int64   `json:"total_tokens"`
+	ActiveUsers        int64   `json:"active_users"`
+	ErrorCount         int64   `json:"error_count"`
+	ErrorRate          float64 `json:"error_rate"`
+	LoginCount         int64   `json:"login_count"`
+	LoginUsers         int64   `json:"login_users"`
+	AvgUseTime         float64 `json:"avg_use_time"`
+	StreamCount        int64   `json:"stream_count"`
+	StreamRatio        float64 `json:"stream_ratio"`
+	NegativeQuotaCount int64   `json:"negative_quota_count"`
+	NegativeQuotaSum   int64   `json:"negative_quota_sum"`
+	RegisteredUsers    int64   `json:"registered_users"`
+	TotalUsers         int64   `json:"total_users"`
+	TopupMoney         float64 `json:"topup_money"`
+	TopupAmount        int64   `json:"topup_amount"`
+	TopupCount         int64   `json:"topup_count"`
+	CurrentBalance     int64   `json:"current_balance"`
+	TotalUsedQuota     int64   `json:"total_used_quota"`
+	TotalRequestCount  int64   `json:"total_request_count"`
 }
 
 type AdminDataStatisticsTrendPoint struct {
-	Bucket           int64   `json:"bucket"`
-	ConsumeQuota     int64   `json:"consume_quota"`
-	RequestCount     int64   `json:"request_count"`
-	PromptTokens     int64   `json:"prompt_tokens"`
-	CompletionTokens int64   `json:"completion_tokens"`
-	TotalTokens      int64   `json:"total_tokens"`
-	ActiveUsers      int64   `json:"active_users"`
-	ErrorCount       int64   `json:"error_count"`
-	ErrorRate        float64 `json:"error_rate"`
-	LoginCount       int64   `json:"login_count"`
-	LoginUsers       int64   `json:"login_users"`
-	AvgUseTime       float64 `json:"avg_use_time"`
-	StreamCount      int64   `json:"stream_count"`
-	StreamRatio      float64 `json:"stream_ratio"`
-	TopupMoney       float64 `json:"topup_money"`
-	TopupAmount      int64   `json:"topup_amount"`
-	RegisteredUsers  int64   `json:"registered_users"`
+	Bucket             int64   `json:"bucket"`
+	ConsumeQuota       int64   `json:"consume_quota"`
+	RequestCount       int64   `json:"request_count"`
+	PromptTokens       int64   `json:"prompt_tokens"`
+	CompletionTokens   int64   `json:"completion_tokens"`
+	TotalTokens        int64   `json:"total_tokens"`
+	ActiveUsers        int64   `json:"active_users"`
+	ErrorCount         int64   `json:"error_count"`
+	ErrorRate          float64 `json:"error_rate"`
+	LoginCount         int64   `json:"login_count"`
+	LoginUsers         int64   `json:"login_users"`
+	AvgUseTime         float64 `json:"avg_use_time"`
+	StreamCount        int64   `json:"stream_count"`
+	StreamRatio        float64 `json:"stream_ratio"`
+	NegativeQuotaCount int64   `json:"negative_quota_count"`
+	NegativeQuotaSum   int64   `json:"negative_quota_sum"`
+	TopupMoney         float64 `json:"topup_money"`
+	TopupAmount        int64   `json:"topup_amount"`
+	TopupCount         int64   `json:"topup_count"`
+	RegisteredUsers    int64   `json:"registered_users"`
+	TotalUsers         int64   `json:"total_users"`
 }
 
 type AdminDataStatisticsRankItem struct {
@@ -72,19 +80,24 @@ type AdminDataStatisticsRankItem struct {
 	RequestCount     int64   `json:"request_count,omitempty"`
 	PromptTokens     int64   `json:"prompt_tokens,omitempty"`
 	CompletionTokens int64   `json:"completion_tokens,omitempty"`
+	ErrorCount       int64   `json:"error_count,omitempty"`
 	TopupMoney       float64 `json:"topup_money,omitempty"`
 	TopupAmount      int64   `json:"topup_amount,omitempty"`
+	TopupCount       int64   `json:"topup_count,omitempty"`
 	CurrentBalance   int64   `json:"current_balance,omitempty"`
 	UsedQuota        int64   `json:"used_quota,omitempty"`
 }
 
 type AdminDataStatisticsRankings struct {
-	Models       []AdminDataStatisticsRankItem `json:"models"`
-	Groups       []AdminDataStatisticsRankItem `json:"groups"`
-	Users        []AdminDataStatisticsRankItem `json:"users"`
-	Channels     []AdminDataStatisticsRankItem `json:"channels"`
-	TopupUsers   []AdminDataStatisticsRankItem `json:"topup_users"`
-	BalanceUsers []AdminDataStatisticsRankItem `json:"balance_users"`
+	Models           []AdminDataStatisticsRankItem `json:"models"`
+	Groups           []AdminDataStatisticsRankItem `json:"groups"`
+	Users            []AdminDataStatisticsRankItem `json:"users"`
+	Channels         []AdminDataStatisticsRankItem `json:"channels"`
+	TopupUsers       []AdminDataStatisticsRankItem `json:"topup_users"`
+	BalanceUsers     []AdminDataStatisticsRankItem `json:"balance_users"`
+	ErrorModels      []AdminDataStatisticsRankItem `json:"error_models"`
+	ErrorChannels    []AdminDataStatisticsRankItem `json:"error_channels"`
+	PaymentProviders []AdminDataStatisticsRankItem `json:"payment_providers"`
 }
 
 type AdminDataStatisticsFilters struct {
@@ -185,21 +198,42 @@ func adminStatisticsTopupQuery(filter AdminDataStatisticsFilter) *gorm.DB {
 	return tx
 }
 
+func adminStatisticsUserQuery(filter AdminDataStatisticsFilter) *gorm.DB {
+	tx := DB.Model(&User{})
+	if filter.Group != "" {
+		tx = tx.Where(commonGroupCol+" = ?", filter.Group)
+	}
+	if filter.UserId > 0 {
+		tx = tx.Where("id = ?", filter.UserId)
+	}
+	return tx
+}
+
+func adminStatisticsBucketStart(timestamp int64, granularity string) int64 {
+	seconds := adminStatisticsBucketSeconds(granularity)
+	if seconds <= 0 {
+		return timestamp
+	}
+	return timestamp / seconds * seconds
+}
+
 func GetAdminDataStatisticsSummary(filter AdminDataStatisticsFilter) (AdminDataStatisticsSummary, error) {
 	var summary AdminDataStatisticsSummary
 
 	var consume struct {
-		ConsumeQuota     int64
-		RequestCount     int64
-		PromptTokens     int64
-		CompletionTokens int64
-		TotalTokens      int64
-		ActiveUsers      int64
-		AvgUseTime       float64
-		StreamCount      int64
+		ConsumeQuota       int64
+		RequestCount       int64
+		PromptTokens       int64
+		CompletionTokens   int64
+		TotalTokens        int64
+		ActiveUsers        int64
+		AvgUseTime         float64
+		StreamCount        int64
+		NegativeQuotaCount int64
+		NegativeQuotaSum   int64
 	}
 	if err := adminStatisticsConsumeQuery(filter).
-		Select("COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COALESCE(SUM(prompt_tokens), 0) + COALESCE(SUM(completion_tokens), 0) AS total_tokens, COUNT(DISTINCT user_id) AS active_users, COALESCE(AVG(use_time), 0) AS avg_use_time, COALESCE(SUM(CASE WHEN is_stream THEN 1 ELSE 0 END), 0) AS stream_count").
+		Select("COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COALESCE(SUM(prompt_tokens), 0) + COALESCE(SUM(completion_tokens), 0) AS total_tokens, COUNT(DISTINCT user_id) AS active_users, COALESCE(AVG(use_time), 0) AS avg_use_time, COALESCE(SUM(CASE WHEN is_stream THEN 1 ELSE 0 END), 0) AS stream_count, COALESCE(SUM(CASE WHEN quota < 0 THEN 1 ELSE 0 END), 0) AS negative_quota_count, COALESCE(SUM(CASE WHEN quota < 0 THEN quota ELSE 0 END), 0) AS negative_quota_sum").
 		Scan(&consume).Error; err != nil {
 		return summary, err
 	}
@@ -211,6 +245,8 @@ func GetAdminDataStatisticsSummary(filter AdminDataStatisticsFilter) (AdminDataS
 	summary.ActiveUsers = consume.ActiveUsers
 	summary.AvgUseTime = consume.AvgUseTime
 	summary.StreamCount = consume.StreamCount
+	summary.NegativeQuotaCount = consume.NegativeQuotaCount
+	summary.NegativeQuotaSum = consume.NegativeQuotaSum
 	if summary.RequestCount > 0 {
 		summary.StreamRatio = float64(summary.StreamCount) / float64(summary.RequestCount)
 	}
@@ -233,30 +269,32 @@ func GetAdminDataStatisticsSummary(filter AdminDataStatisticsFilter) (AdminDataS
 	summary.LoginCount = login.LoginCount
 	summary.LoginUsers = login.LoginUsers
 
-	userQuery := DB.Model(&User{})
+	userQuery := adminStatisticsUserQuery(filter)
 	if filter.StartTimestamp > 0 {
 		userQuery = userQuery.Where("created_at >= ?", filter.StartTimestamp)
 	}
 	if filter.EndTimestamp > 0 {
 		userQuery = userQuery.Where("created_at <= ?", filter.EndTimestamp)
 	}
-	if filter.Group != "" {
-		userQuery = userQuery.Where(commonGroupCol+" = ?", filter.Group)
-	}
 	if err := userQuery.Count(&summary.RegisteredUsers).Error; err != nil {
 		return summary, err
 	}
 
+	totalUserQuery := adminStatisticsUserQuery(filter)
+	if filter.EndTimestamp > 0 {
+		totalUserQuery = totalUserQuery.Where("created_at <= ?", filter.EndTimestamp)
+	}
+	if err := totalUserQuery.Count(&summary.TotalUsers).Error; err != nil {
+		return summary, err
+	}
+
 	if err := adminStatisticsTopupQuery(filter).
-		Select("COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount").
+		Select("COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount, COUNT(*) AS topup_count").
 		Scan(&summary).Error; err != nil {
 		return summary, err
 	}
 
-	balanceQuery := DB.Model(&User{})
-	if filter.Group != "" {
-		balanceQuery = balanceQuery.Where(commonGroupCol+" = ?", filter.Group)
-	}
+	balanceQuery := adminStatisticsUserQuery(filter)
 	if err := balanceQuery.
 		Select("COALESCE(SUM(quota), 0) AS current_balance, COALESCE(SUM(used_quota), 0) AS total_used_quota, COALESCE(SUM(request_count), 0) AS total_request_count").
 		Scan(&summary).Error; err != nil {
@@ -274,11 +312,19 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 		}
 		return points[bucket]
 	}
+	if filter.StartTimestamp > 0 && filter.EndTimestamp >= filter.StartTimestamp {
+		seconds := adminStatisticsBucketSeconds(filter.Granularity)
+		firstBucket := adminStatisticsBucketStart(filter.StartTimestamp, filter.Granularity)
+		lastBucket := adminStatisticsBucketStart(filter.EndTimestamp, filter.Granularity)
+		for bucket := firstBucket; bucket <= lastBucket; bucket += seconds {
+			ensurePoint(bucket)
+		}
+	}
 
 	logBucket := adminStatisticsLogBucketExpr(filter.Granularity)
 	var consumeRows []AdminDataStatisticsTrendPoint
 	if err := adminStatisticsConsumeQuery(filter).
-		Select(logBucket + " AS bucket, COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COALESCE(SUM(prompt_tokens), 0) + COALESCE(SUM(completion_tokens), 0) AS total_tokens, COUNT(DISTINCT user_id) AS active_users, COALESCE(AVG(use_time), 0) AS avg_use_time, COALESCE(SUM(CASE WHEN is_stream THEN 1 ELSE 0 END), 0) AS stream_count").
+		Select(logBucket + " AS bucket, COALESCE(SUM(quota), 0) AS consume_quota, COUNT(*) AS request_count, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COALESCE(SUM(prompt_tokens), 0) + COALESCE(SUM(completion_tokens), 0) AS total_tokens, COUNT(DISTINCT user_id) AS active_users, COALESCE(AVG(use_time), 0) AS avg_use_time, COALESCE(SUM(CASE WHEN is_stream THEN 1 ELSE 0 END), 0) AS stream_count, COALESCE(SUM(CASE WHEN quota < 0 THEN 1 ELSE 0 END), 0) AS negative_quota_count, COALESCE(SUM(CASE WHEN quota < 0 THEN quota ELSE 0 END), 0) AS negative_quota_sum").
 		Group("bucket").
 		Order("bucket asc").
 		Scan(&consumeRows).Error; err != nil {
@@ -294,6 +340,8 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 		point.ActiveUsers = row.ActiveUsers
 		point.AvgUseTime = row.AvgUseTime
 		point.StreamCount = row.StreamCount
+		point.NegativeQuotaCount = row.NegativeQuotaCount
+		point.NegativeQuotaSum = row.NegativeQuotaSum
 	}
 
 	var errorRows []AdminDataStatisticsTrendPoint
@@ -325,7 +373,7 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 	mainBucket := adminStatisticsMainBucketExpr("complete_time", filter.Granularity)
 	var topupRows []AdminDataStatisticsTrendPoint
 	if err := adminStatisticsTopupQuery(filter).
-		Select(mainBucket + " AS bucket, COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount").
+		Select(mainBucket + " AS bucket, COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount, COUNT(*) AS topup_count").
 		Group("bucket").
 		Order("bucket asc").
 		Scan(&topupRows).Error; err != nil {
@@ -335,19 +383,17 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 		point := ensurePoint(row.Bucket)
 		point.TopupMoney = row.TopupMoney
 		point.TopupAmount = row.TopupAmount
+		point.TopupCount = row.TopupCount
 	}
 
 	userBucket := adminStatisticsMainBucketExpr("created_at", filter.Granularity)
 	var registerRows []AdminDataStatisticsTrendPoint
-	userQuery := DB.Model(&User{})
+	userQuery := adminStatisticsUserQuery(filter)
 	if filter.StartTimestamp > 0 {
 		userQuery = userQuery.Where("created_at >= ?", filter.StartTimestamp)
 	}
 	if filter.EndTimestamp > 0 {
 		userQuery = userQuery.Where("created_at <= ?", filter.EndTimestamp)
-	}
-	if filter.Group != "" {
-		userQuery = userQuery.Where(commonGroupCol+" = ?", filter.Group)
 	}
 	if err := userQuery.
 		Select(userBucket + " AS bucket, COUNT(*) AS registered_users").
@@ -365,6 +411,34 @@ func GetAdminDataStatisticsTrends(filter AdminDataStatisticsFilter) ([]AdminData
 		buckets = append(buckets, bucket)
 	}
 	sort.Slice(buckets, func(i, j int) bool { return buckets[i] < buckets[j] })
+	if len(buckets) > 0 {
+		firstBucket := buckets[0]
+		var totalUsersBefore int64
+		if err := adminStatisticsUserQuery(filter).
+			Where("created_at < ?", firstBucket).
+			Count(&totalUsersBefore).Error; err != nil {
+			return nil, err
+		}
+		var totalUserRows []AdminDataStatisticsTrendPoint
+		if err := adminStatisticsUserQuery(filter).
+			Where("created_at >= ?", firstBucket).
+			Where("created_at <= ?", filter.EndTimestamp).
+			Select(userBucket + " AS bucket, COUNT(*) AS registered_users").
+			Group("bucket").
+			Order("bucket asc").
+			Scan(&totalUserRows).Error; err != nil {
+			return nil, err
+		}
+		totalUsersByBucket := map[int64]int64{}
+		for _, row := range totalUserRows {
+			totalUsersByBucket[row.Bucket] = row.RegisteredUsers
+		}
+		totalUsers := totalUsersBefore
+		for _, bucket := range buckets {
+			totalUsers += totalUsersByBucket[bucket]
+			points[bucket].TotalUsers = totalUsers
+		}
+	}
 	result := make([]AdminDataStatisticsTrendPoint, 0, len(buckets))
 	for _, bucket := range buckets {
 		point := points[bucket]
@@ -398,6 +472,15 @@ func GetAdminDataStatisticsRankings(filter AdminDataStatisticsFilter) (AdminData
 		return rankings, err
 	}
 	if rankings.BalanceUsers, err = adminStatisticsBalanceUserRanking(filter); err != nil {
+		return rankings, err
+	}
+	if rankings.ErrorModels, err = adminStatisticsErrorRanking(filter, "model_name", "model_name <> ''"); err != nil {
+		return rankings, err
+	}
+	if rankings.ErrorChannels, err = adminStatisticsErrorChannelRanking(filter); err != nil {
+		return rankings, err
+	}
+	if rankings.PaymentProviders, err = adminStatisticsPaymentProviderRanking(filter); err != nil {
 		return rankings, err
 	}
 	return rankings, nil
@@ -449,6 +532,10 @@ func adminStatisticsChannelRanking(filter AdminDataStatisticsFilter) ([]AdminDat
 		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
+	return fillAdminStatisticsChannelNames(rows)
+}
+
+func fillAdminStatisticsChannelNames(rows []AdminDataStatisticsRankItem) ([]AdminDataStatisticsRankItem, error) {
 	if len(rows) == 0 {
 		return rows, nil
 	}
@@ -476,10 +563,55 @@ func adminStatisticsChannelRanking(filter AdminDataStatisticsFilter) ([]AdminDat
 	return rows, nil
 }
 
+func adminStatisticsErrorRanking(filter AdminDataStatisticsFilter, keyColumn string, nonEmptyCondition string) ([]AdminDataStatisticsRankItem, error) {
+	var rows []AdminDataStatisticsRankItem
+	query := adminStatisticsErrorQuery(filter)
+	if nonEmptyCondition != "" {
+		query = query.Where(nonEmptyCondition)
+	}
+	if err := query.
+		Select(keyColumn + " AS name, COUNT(*) AS error_count").
+		Group(keyColumn).
+		Order("error_count desc").
+		Limit(adminDataStatisticsMaxRankingLimit).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func adminStatisticsErrorChannelRanking(filter AdminDataStatisticsFilter) ([]AdminDataStatisticsRankItem, error) {
+	var rows []AdminDataStatisticsRankItem
+	if err := adminStatisticsErrorQuery(filter).
+		Where("channel_id > 0").
+		Select("channel_id AS id, COUNT(*) AS error_count").
+		Group("channel_id").
+		Order("error_count desc").
+		Limit(adminDataStatisticsMaxRankingLimit).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return fillAdminStatisticsChannelNames(rows)
+}
+
+func adminStatisticsPaymentProviderRanking(filter AdminDataStatisticsFilter) ([]AdminDataStatisticsRankItem, error) {
+	var rows []AdminDataStatisticsRankItem
+	if err := adminStatisticsTopupQuery(filter).
+		Where("payment_provider <> ''").
+		Select("payment_provider AS name, COUNT(*) AS topup_count, COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount").
+		Group("payment_provider").
+		Order("topup_money desc").
+		Limit(adminDataStatisticsMaxRankingLimit).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 func adminStatisticsTopupUserRanking(filter AdminDataStatisticsFilter) ([]AdminDataStatisticsRankItem, error) {
 	var rows []AdminDataStatisticsRankItem
 	if err := adminStatisticsTopupQuery(filter).
-		Select("user_id AS id, COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount").
+		Select("user_id AS id, COUNT(*) AS topup_count, COALESCE(SUM(money), 0) AS topup_money, COALESCE(SUM(amount), 0) AS topup_amount").
 		Where("user_id > 0").
 		Group("user_id").
 		Order("topup_money desc").
@@ -492,10 +624,7 @@ func adminStatisticsTopupUserRanking(filter AdminDataStatisticsFilter) ([]AdminD
 
 func adminStatisticsBalanceUserRanking(filter AdminDataStatisticsFilter) ([]AdminDataStatisticsRankItem, error) {
 	var rows []AdminDataStatisticsRankItem
-	query := DB.Model(&User{})
-	if filter.Group != "" {
-		query = query.Where(commonGroupCol+" = ?", filter.Group)
-	}
+	query := adminStatisticsUserQuery(filter)
 	if err := query.
 		Select("id, username, quota AS current_balance, used_quota AS used_quota, request_count AS request_count").
 		Order("quota desc").
