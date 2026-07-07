@@ -38,16 +38,19 @@
 - `/api/perf-metrics?model=...` 保留原有 `group` 查询和分组响应契约，只额外返回 `display_name` 供前端展示。
 - 未维护模型元数据时保持旧行为，继续展示原模型名；只有管理员明确关闭可用性展示时才隐藏。
 - 默认模型同步和官方默认模型都会把 `availability_enabled` 设为开启，保证升级后现有模型不会突然从用户侧性能视图消失。
+- 后端最小闭环已落地：`/api/model-availability/*` 管理接口走 `RootAuth`，`/api/model-status/*` 用户接口走 `UserAuth`，复用 `perf_metrics` 和 `logs`，不改 relay、计费和渠道选择。
+- 新版前端已新增独立管理员页面 `/model-availability`，展示模型健康、近期错误和用户侧展示配置。
+- 新版前端已新增独立用户页面 `/model-status`，只展示当前用户可用模型的脱敏状态。
+- 用户侧展示配置已用 `ModelAvailabilityDisplaySetting` option 落地，支持 `public_model_id`、`display_name`、`visible`、`status_enabled` 和排序。
+- 用户侧模型状态默认关闭，需要管理员显式打开，避免升级后直接暴露平台运营状态。
 
 暂未落地：
 
-- 独立管理员“模型可用性”大页面。
-- 独立用户“模型状态”页面。
-- 管理员错误追踪、渠道下钻、状态码分布和最近失败样本。
-- 按分组配置不同用户侧展示名。
-- 用户侧 `public_model_id` 白名单和分组级展示配置。
+- 更完整的渠道下钻、状态码分布和趋势详情。
+- 可视化的展示配置表格编辑器；当前第一版用 JSON 配置完成最小闭环。
+- 管理员按分组预览普通用户最终可见名称。
 
-后续建议继续按下面阶段推进：先做管理员只读观测页，再做用户脱敏状态页，最后再补分组展示配置和渠道告警联动。
+后续建议继续按下面阶段推进：把当前只读观测和 JSON 配置增强为更完整的渠道下钻、展示配置表格和渠道告警联动。
 
 ## 2. 现有代码基础
 
@@ -469,9 +472,10 @@ auto:    样本不足
 
 默认策略建议：
 
-- 未配置时，沿用“当前用户可用模型列表 + 原模型名展示”的现有行为，保证兼容。
-- 一旦某个分组启用显式展示配置，则该分组用户侧状态页只展示 `visible=true` 且 `status_enabled=true` 的配置项。
-- 同一分组内 `public_model_id` 必须唯一，避免详情页、缓存和前端选中状态混淆。
+- 用户侧状态页默认关闭，需要管理员显式开启后才公开。
+- 管理员开启公开状态页但未配置展示项时，沿用“当前用户可用模型列表 + 原模型名展示”的兼容行为。
+- 一旦配置了展示项，用户侧状态页只展示当前用户可访问分组中 `visible=true` 且 `status_enabled=true` 的配置项。
+- `public_model_id` 必须全局唯一，避免多分组用户看到不可区分的重复行。
 - 不建议第一版支持多个真实模型合并成一个用户展示模型；如果必须合并，应作为第二阶段能力单独设计聚合口径。
 
 ## 4. 判定规则
@@ -568,25 +572,21 @@ auto:    样本不足
 
 第一版建议新增两组只读接口，复用现有数据。
 
-管理员接口：
+第一版已落地的管理员接口：
 
 ```text
-GET /api/admin/model-availability/summary
-GET /api/admin/model-availability/models
-GET /api/admin/model-availability/models/:model
-GET /api/admin/model-availability/errors
-GET /api/admin/model-availability/channels
-GET /api/admin/model-availability/filters
-GET /api/admin/model-availability/public-display-settings
-PUT /api/admin/model-availability/public-display-settings
+GET /api/model-availability/summary
+GET /api/model-availability/models
+GET /api/model-availability/errors
+GET /api/model-availability/display-settings
+PUT /api/model-availability/display-settings
 ```
 
-用户接口：
+第一版已落地的用户接口：
 
 ```text
 GET /api/model-status/summary
 GET /api/model-status/models
-GET /api/model-status/models/:model
 ```
 
 对应文件建议：
@@ -796,7 +796,7 @@ GET /api/model-status/models/:model
   "degraded_success_rate": 95,
   "slow_latency_ms": 15000,
   "slow_ttft_ms": 8000,
-  "public_enabled": true,
+  "public_enabled": false,
   "public_window_hours": 24,
   "public_min_sample": 20,
   "public_show_exact_rate": false
@@ -1440,6 +1440,7 @@ LiteLLM / Helicone 的网关埋点模型
 - 以错误日志作为渠道排障口径。
 - 管理员接口和用户接口分开实现，不共用同一个返回结构。
 - 用户页面默认不展示精确成功率和请求数，只展示状态标签和区间提示。
-- 用户侧展示配置第一版走配置项，不新增表；未配置分组沿用现有可用模型展示。
+- 用户侧模型状态默认关闭；管理员开启后才对用户展示。
+- 用户侧展示配置第一版走配置项，不新增表；开启公开但未配置展示项时沿用现有可用模型展示。
 - 管理员可配置用户侧展示范围和展示别名，但不改变真实请求模型名。
 - 后续再和渠道告警、OpenTelemetry、P95/P99 指标联动。

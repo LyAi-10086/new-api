@@ -254,6 +254,23 @@ func SetApiRouter(router *gin.Engine) {
 			dataStatisticsRoute.GET("/filters", controller.GetAdminDataStatisticsFilters)
 		}
 
+		modelAvailabilityRoute := apiRouter.Group("/model-availability")
+		modelAvailabilityRoute.Use(middleware.RootAuth())
+		{
+			modelAvailabilityRoute.GET("/summary", controller.GetModelAvailabilitySummary)
+			modelAvailabilityRoute.GET("/models", controller.GetModelAvailabilityModels)
+			modelAvailabilityRoute.GET("/errors", controller.GetModelAvailabilityErrors)
+			modelAvailabilityRoute.GET("/display-settings", controller.GetModelAvailabilityDisplaySettings)
+			modelAvailabilityRoute.PUT("/display-settings", controller.UpdateModelAvailabilityDisplaySettings)
+		}
+
+		modelStatusRoute := apiRouter.Group("/model-status")
+		modelStatusRoute.Use(middleware.UserAuth())
+		{
+			modelStatusRoute.GET("/summary", controller.GetModelStatusSummary)
+			modelStatusRoute.GET("/models", controller.GetModelStatusModels)
+		}
+
 		// Custom OAuth provider management (root only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")
 		customOAuthRoute.Use(middleware.RootAuth())

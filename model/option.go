@@ -174,6 +174,8 @@ func InitOptionMap() {
 	common.OptionMap["SensitiveViolationPolicy"] = setting.SensitiveViolationPolicyToJSONString()
 	common.OptionMap[setting.TimePricingSettingOptionKey] = setting.TimePricingSettingToJSONString()
 	common.OptionMap[setting.AffiliateRechargePolicyOptionKey] = setting.AffiliateRechargePolicyToJSONString()
+	modelAvailabilityDisplaySetting, _ := operation_setting.ModelAvailabilityDisplaySettingToJSONString(operation_setting.DefaultModelAvailabilityDisplaySetting())
+	common.OptionMap[operation_setting.ModelAvailabilityDisplaySettingOptionKey] = modelAvailabilityDisplaySetting
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
