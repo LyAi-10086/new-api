@@ -71,6 +71,10 @@ export const channelSchema = z.object({
     multi_key_mode: 'random',
   }),
   settings: z.string().default('{}'), // other_settings JSON
+  channel_alert_enabled: z.boolean().default(false),
+  channel_alert_active: z.boolean().default(false),
+  channel_alert_last_alert_at: z.number().default(0),
+  channel_alert_last_recovery_at: z.number().default(0),
 })
 
 export type Channel = z.infer<typeof channelSchema>

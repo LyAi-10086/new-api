@@ -47,10 +47,7 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	if relayInfo.ReasoningEffort != "" {
 		other["reasoning_effort"] = relayInfo.ReasoningEffort
 	}
-	if relayInfo.IsModelMapped {
-		other["is_model_mapped"] = true
-		other["upstream_model_name"] = relayInfo.UpstreamModelName
-	}
+	appendLogModelNames(relayInfo, other)
 
 	isSystemPromptOverwritten := common.GetContextKeyBool(ctx, constant.ContextKeySystemPromptOverride)
 	if isSystemPromptOverwritten {
@@ -87,6 +84,25 @@ func appendParamOverrideInfo(relayInfo *relaycommon.RelayInfo, other map[string]
 		return
 	}
 	other["po"] = relayInfo.ParamOverrideAudit
+}
+
+func appendLogModelNames(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
+	if relayInfo == nil || other == nil {
+		return
+	}
+	originModel := strings.TrimSpace(relayInfo.OriginModelName)
+	upstreamModel := strings.TrimSpace(relayInfo.UpstreamModelName)
+	if originModel != "" {
+		other["origin_model_name"] = originModel
+	}
+	if upstreamModel != "" {
+		other["upstream_model_name"] = upstreamModel
+	}
+	if upstreamModel != "" && originModel != "" && upstreamModel != originModel {
+		other["is_model_mapped"] = true
+	} else if relayInfo.IsModelMapped {
+		other["is_model_mapped"] = true
+	}
 }
 
 func appendStreamStatus(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
@@ -261,6 +277,7 @@ func GenerateMjOtherInfo(relayInfo *relaycommon.RelayInfo, priceData types.Price
 	if priceData.GroupRatioInfo.HasSpecialRatio {
 		other["user_group_ratio"] = priceData.GroupRatioInfo.GroupSpecialRatio
 	}
+	appendLogModelNames(relayInfo, other)
 	appendRequestPath(nil, relayInfo, other)
 	return other
 }

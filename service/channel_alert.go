@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"net/mail"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -166,7 +165,12 @@ func ObserveChannelRecovery(params ChannelAlertRecoveryParams) {
 	if shouldSend {
 		params.ChannelName = fallbackString(params.ChannelName, channel.Name)
 		params.ChannelType = fallbackInt(params.ChannelType, channel.Type)
-		sendChannelRecoveryAlert(policy, recipients, params, rules)
+		event := recordChannelRecoveryEvent(params, rules)
+		if err := sendChannelRecoveryAlert(policy, recipients, params, rules); err == nil && event != nil {
+			if bytes, marshalErr := common.Marshal(recipients); marshalErr == nil {
+				_ = model.MarkChannelAlertEventSent(event.Id, string(bytes))
+			}
+		}
 	}
 }
 
@@ -196,35 +200,7 @@ func SendChannelAlertTest() error {
 }
 
 func ParseChannelAlertRecipients(values []string) ([]string, error) {
-	seen := make(map[string]struct{}, len(values))
-	recipients := make([]string, 0, len(values))
-	for _, value := range values {
-		for _, part := range strings.FieldsFunc(value, func(r rune) bool {
-			return r == ',' || r == '，' || r == ';' || r == '\n' || r == '\r'
-		}) {
-			email := strings.TrimSpace(part)
-			if email == "" {
-				continue
-			}
-			if strings.ContainsAny(email, "\r\n") {
-				return nil, fmt.Errorf("invalid email recipient")
-			}
-			addr, err := mail.ParseAddress(email)
-			if err != nil || addr.Address == "" || addr.Name != "" {
-				return nil, fmt.Errorf("invalid email recipient: %s", common.MaskEmail(email))
-			}
-			normalized := strings.ToLower(addr.Address)
-			if _, ok := seen[normalized]; ok {
-				continue
-			}
-			seen[normalized] = struct{}{}
-			recipients = append(recipients, addr.Address)
-			if len(recipients) > 20 {
-				return nil, fmt.Errorf("channel alert recipients exceed 20")
-			}
-		}
-	}
-	return recipients, nil
+	return operation_setting.ParseChannelAlertRecipients(values)
 }
 
 func getChannelAlertChannel(channelId int) (*model.Channel, bool) {
@@ -369,14 +345,33 @@ func sendChannelFailureAlert(policy operation_setting.ChannelAlertSetting, recip
 	common.SysLog(fmt.Sprintf("channel alert sent: event_id=%d channel_id=%d rule_source=%s recipients=%s", eventId, params.ChannelId, params.Source, maskRecipients(recipients)))
 }
 
-func sendChannelRecoveryAlert(policy operation_setting.ChannelAlertSetting, recipients []string, params ChannelAlertRecoveryParams, rules []string) {
+func recordChannelRecoveryEvent(params ChannelAlertRecoveryParams, rules []string) *model.ChannelAlertEvent {
+	event := &model.ChannelAlertEvent{
+		ChannelId:    params.ChannelId,
+		ChannelName:  params.ChannelName,
+		ChannelType:  params.ChannelType,
+		Source:       params.Source,
+		RuleKey:      "recovery",
+		ErrorCode:    "recovery",
+		ErrorType:    "recovery",
+		ErrorPreview: BuildSafeChannelAlertPreview("Channel recovered from active alert rules: " + strings.Join(rules, ", ")),
+	}
+	if err := model.CreateChannelAlertEvent(event); err != nil {
+		common.SysError(fmt.Sprintf("failed to record channel recovery event: channel_id=%d err=%v", params.ChannelId, err))
+		return nil
+	}
+	return event
+}
+
+func sendChannelRecoveryAlert(policy operation_setting.ChannelAlertSetting, recipients []string, params ChannelAlertRecoveryParams, rules []string) error {
 	subject := fmt.Sprintf("New API 渠道恢复通知：%s（#%d）", params.ChannelName, params.ChannelId)
 	content := buildChannelRecoveryAlertContent(params, rules, policy.WindowSeconds)
 	if err := sendChannelAlertEmail(recipients, subject, content); err != nil {
 		common.SysError(fmt.Sprintf("failed to send channel recovery email: channel_id=%d err=%v", params.ChannelId, err))
-		return
+		return err
 	}
 	common.SysLog(fmt.Sprintf("channel recovery alert sent: channel_id=%d recipients=%s", params.ChannelId, maskRecipients(recipients)))
+	return nil
 }
 
 func sendChannelAlertEmail(recipients []string, subject string, content string) error {

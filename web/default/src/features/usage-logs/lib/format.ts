@@ -155,20 +155,21 @@ export function getResponseTimeColor(
  */
 export function formatModelName(log: UsageLog): {
   name: string
+  requestModel: string
+  displayModel: string
   isMapped: boolean
-  actualModel?: string
 } {
   const other = parseLogOther(log.other)
-  const isMapped = !!(
-    other?.is_model_mapped &&
-    other?.upstream_model_name &&
-    other.upstream_model_name !== ''
-  )
+  const requestModel = (other?.origin_model_name || log.model_name || '').trim()
+  const upstreamModel = (other?.upstream_model_name || '').trim()
+  const displayModel = upstreamModel || requestModel || log.model_name
+  const isMapped = upstreamModel !== '' && upstreamModel !== requestModel
 
   return {
-    name: log.model_name,
+    name: displayModel,
+    requestModel,
+    displayModel,
     isMapped,
-    actualModel: isMapped ? other.upstream_model_name : undefined,
   }
 }
 

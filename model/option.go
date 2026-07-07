@@ -208,6 +208,9 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
+	if err := operation_setting.ValidateChannelAlertOptionPatch(map[string]string{key: value}); err != nil {
+		return err
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
@@ -231,6 +234,9 @@ func UpdateOption(key string, value string) error {
 func UpdateOptionsBulk(values map[string]string) error {
 	if len(values) == 0 {
 		return nil
+	}
+	if err := operation_setting.ValidateChannelAlertOptionPatch(values); err != nil {
+		return err
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		for k, v := range values {

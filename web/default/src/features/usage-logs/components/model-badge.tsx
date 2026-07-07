@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils'
 
 interface ModelBadgeProps {
   modelName: string
-  actualModel?: string
+  requestModel?: string
   className?: string
 }
 
@@ -155,8 +155,10 @@ function ModelBadgeContent(props: ModelBadgeProps) {
 
 export function ModelBadge(props: ModelBadgeProps) {
   const { t } = useTranslation()
+  const showMapping =
+    props.requestModel && props.requestModel !== props.modelName
 
-  if (!props.actualModel) {
+  if (!showMapping) {
     return <ModelBadgeContent {...props} />
   }
 
@@ -174,7 +176,7 @@ export function ModelBadge(props: ModelBadgeProps) {
         <div className='space-y-2'>
           <div className='flex items-start justify-between gap-3'>
             <span className='text-muted-foreground text-xs'>
-              {t('Request Model:')}
+              {t('Display Model')}
             </span>
             <span className='truncate font-mono text-xs font-medium'>
               {props.modelName}
@@ -182,10 +184,10 @@ export function ModelBadge(props: ModelBadgeProps) {
           </div>
           <div className='flex items-start justify-between gap-3'>
             <span className='text-muted-foreground text-xs'>
-              {t('Actual Model:')}
+              {t('Request Model')}
             </span>
             <span className='truncate font-mono text-xs font-medium'>
-              {props.actualModel}
+              {props.requestModel}
             </span>
           </div>
         </div>

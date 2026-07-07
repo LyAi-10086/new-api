@@ -508,6 +508,75 @@ function BalanceCell({ channel }: { channel: Channel }) {
   )
 }
 
+function ChannelAlertCell({
+  channel,
+  locale,
+}: {
+  channel: Channel
+  locale: string
+}) {
+  const { t } = useTranslation()
+  const lastAlertAt = channel.channel_alert_last_alert_at || 0
+  const lastRecoveryAt = channel.channel_alert_last_recovery_at || 0
+  const hasTimeline = lastAlertAt > 0 || lastRecoveryAt > 0
+
+  if (!channel.channel_alert_enabled && !channel.channel_alert_active) {
+    return <span className='text-muted-foreground text-xs'>-</span>
+  }
+
+  const label = channel.channel_alert_active ? t('Active') : t('Enabled')
+  const variant = channel.channel_alert_active ? 'danger' : 'success'
+  const badge = (
+    <StatusBadge
+      label={label}
+      variant={variant}
+      size='sm'
+      copyable={false}
+      className='-ml-1.5'
+    />
+  )
+
+  if (!hasTimeline) {
+    return badge
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger render={<span className='inline-flex' />}>
+          {badge}
+        </TooltipTrigger>
+        <TooltipContent side='top'>
+          <div className='space-y-1'>
+            {lastAlertAt > 0 && (
+              <div className='text-xs'>
+                <span className='text-muted-foreground'>
+                  {t('Last Alert')}:
+                </span>{' '}
+                <span>{formatRelativeTime(lastAlertAt, locale)}</span>
+                <span className='text-muted-foreground ml-1'>
+                  {formatTimestampToDate(lastAlertAt)}
+                </span>
+              </div>
+            )}
+            {lastRecoveryAt > 0 && (
+              <div className='text-xs'>
+                <span className='text-muted-foreground'>
+                  {t('Last Recovery')}:
+                </span>{' '}
+                <span>{formatRelativeTime(lastRecoveryAt, locale)}</span>
+                <span className='text-muted-foreground ml-1'>
+                  {formatTimestampToDate(lastRecoveryAt)}
+                </span>
+              </div>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 /**
  * Generate channels columns configuration
  */
@@ -948,6 +1017,18 @@ export function useChannelsColumns(
           }
           return false
         },
+        size: 120,
+        enableSorting: false,
+      },
+
+      // Channel alert column
+      {
+        id: 'channel_alert',
+        header: t('Channel Alert'),
+        meta: { mobileHidden: true },
+        cell: ({ row }) => (
+          <ChannelAlertCell channel={row.original} locale={locale} />
+        ),
         size: 120,
         enableSorting: false,
       },

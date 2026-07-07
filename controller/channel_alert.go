@@ -21,11 +21,7 @@ func UpdateChannelAlertSettings(c *gin.Context) {
 		return
 	}
 	req = operation_setting.NormalizeChannelAlertSetting(req)
-	if _, err := service.ParseChannelAlertRecipients(req.Recipients); err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if _, err := operation_setting.ParseHTTPStatusCodeRanges(req.StatusCodes); err != nil {
+	if err := operation_setting.ValidateChannelAlertSetting(req); err != nil {
 		common.ApiError(c, err)
 		return
 	}

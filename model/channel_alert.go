@@ -114,6 +114,16 @@ func ListActiveChannelAlertStates(channelId int) ([]ChannelAlertState, error) {
 	return states, err
 }
 
+func ListChannelAlertStatesByChannelIds(channelIds []int) ([]ChannelAlertState, error) {
+	var states []ChannelAlertState
+	if len(channelIds) == 0 {
+		return states, nil
+	}
+	err := DB.Where("channel_id IN ?", channelIds).
+		Find(&states).Error
+	return states, err
+}
+
 func buildChannelAlertEventQuery(filter ChannelAlertEventFilter) *gorm.DB {
 	query := DB.Model(&ChannelAlertEvent{})
 	if filter.ChannelId > 0 {

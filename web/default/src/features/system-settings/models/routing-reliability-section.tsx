@@ -82,40 +82,44 @@ const numericString = z.string().refine((value) => {
 
 const channelTestModes = ['scheduled_all', 'passive_recovery'] as const
 type ChannelTestMode = (typeof channelTestModes)[number]
+type TranslationFunction = (key: string) => string
 
-const routingReliabilitySchema = z
-  .object({
-    RetryTimes: z.coerce.number().min(0).max(10),
-    ChannelDisableThreshold: numericString,
-    AutomaticDisableChannelEnabled: z.boolean(),
-    AutomaticEnableChannelEnabled: z.boolean(),
-    AutomaticDisableKeywords: z.string(),
-    AutomaticDisableStatusCodes: z.string(),
-    AutomaticRetryStatusCodes: z.string(),
-    monitor_setting: z.object({
-      auto_test_channel_enabled: z.boolean(),
-      auto_test_channel_minutes: z.coerce
-        .number()
-        .int()
-        .min(1, 'Interval must be at least 1 minute'),
-      channel_test_mode: z.enum(channelTestModes),
-    }),
-    channel_alert_setting: z.object({
-      enabled: z.boolean(),
-      recipients: z.string(),
-      window_seconds: z.coerce.number().int().min(1).max(86400),
-      failure_threshold: z.coerce.number().int().min(1).max(10000),
-      cooldown_seconds: z.coerce.number().int().min(0).max(604800),
-      recovery_enabled: z.boolean(),
-      recovery_cooldown_seconds: z.coerce.number().int().min(0).max(604800),
-      status_codes: z.string(),
-      keywords: z.string(),
-      include_relay_errors: z.boolean(),
-      include_scheduled_tests: z.boolean(),
-      include_manual_tests: z.boolean(),
-    }),
-  })
-  .superRefine((values, ctx) => {
+const buildRoutingReliabilitySchema = (
+  t: TranslationFunction = (key) => key
+) =>
+  z
+    .object({
+      RetryTimes: z.coerce.number().min(0).max(10),
+      ChannelDisableThreshold: numericString,
+      AutomaticDisableChannelEnabled: z.boolean(),
+      AutomaticEnableChannelEnabled: z.boolean(),
+      AutomaticDisableKeywords: z.string(),
+      AutomaticDisableStatusCodes: z.string(),
+      AutomaticRetryStatusCodes: z.string(),
+      monitor_setting: z.object({
+        auto_test_channel_enabled: z.boolean(),
+        auto_test_channel_minutes: z.coerce
+          .number()
+          .int()
+          .min(1, 'Interval must be at least 1 minute'),
+        channel_test_mode: z.enum(channelTestModes),
+      }),
+      channel_alert_setting: z.object({
+        enabled: z.boolean(),
+        recipients: z.string(),
+        window_seconds: z.coerce.number().int().min(1).max(86400),
+        failure_threshold: z.coerce.number().int().min(1).max(10000),
+        cooldown_seconds: z.coerce.number().int().min(0).max(604800),
+        recovery_enabled: z.boolean(),
+        recovery_cooldown_seconds: z.coerce.number().int().min(0).max(604800),
+        status_codes: z.string(),
+        keywords: z.string(),
+        include_relay_errors: z.boolean(),
+        include_scheduled_tests: z.boolean(),
+        include_manual_tests: z.boolean(),
+      }),
+    })
+    .superRefine((values, ctx) => {
     const disableParsed = parseHttpStatusCodeRules(
       values.AutomaticDisableStatusCodes
     )
@@ -154,7 +158,21 @@ const routingReliabilitySchema = z
         )}`,
       })
     }
+    if (
+      values.channel_alert_setting.enabled &&
+      values.channel_alert_setting.recipients.trim() === ''
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['channel_alert_setting', 'recipients'],
+        message: t(
+          'Alert recipients are required when channel alerts are enabled'
+        ),
+      })
+    }
   })
+
+const routingReliabilitySchema = buildRoutingReliabilitySchema()
 
 type RoutingReliabilityFormValues = z.output<typeof routingReliabilitySchema>
 type RoutingReliabilityFormInput = z.input<typeof routingReliabilitySchema>
@@ -552,13 +570,17 @@ export function RoutingReliabilitySection({
     () => buildFormDefaults(defaultValues),
     [defaultValues]
   )
+  const localizedRoutingReliabilitySchema = useMemo(
+    () => buildRoutingReliabilitySchema(t),
+    [t]
+  )
 
   const form = useForm<
     RoutingReliabilityFormInput,
     unknown,
     RoutingReliabilityFormValues
   >({
-    resolver: zodResolver(routingReliabilitySchema),
+    resolver: zodResolver(localizedRoutingReliabilitySchema),
     defaultValues: formDefaults,
   })
 

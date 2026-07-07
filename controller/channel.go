@@ -97,6 +97,62 @@ func GetChannelOps(c *gin.Context) {
 	})
 }
 
+type channelListItem struct {
+	*model.Channel
+	ChannelAlertEnabled        bool  `json:"channel_alert_enabled"`
+	ChannelAlertActive         bool  `json:"channel_alert_active"`
+	ChannelAlertLastAlertAt    int64 `json:"channel_alert_last_alert_at"`
+	ChannelAlertLastRecoveryAt int64 `json:"channel_alert_last_recovery_at"`
+}
+
+func buildChannelListItems(channels []*model.Channel) []channelListItem {
+	items := make([]channelListItem, 0, len(channels))
+	channelIds := make([]int, 0, len(channels))
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		channelIds = append(channelIds, channel.Id)
+	}
+
+	stateMap := make(map[int]channelListItem, len(channelIds))
+	states, err := model.ListChannelAlertStatesByChannelIds(channelIds)
+	if err != nil {
+		common.SysError("failed to get channel alert states: " + err.Error())
+	} else {
+		for _, state := range states {
+			current := stateMap[state.ChannelId]
+			if state.Active {
+				current.ChannelAlertActive = true
+			}
+			if state.LastAlertAt > current.ChannelAlertLastAlertAt {
+				current.ChannelAlertLastAlertAt = state.LastAlertAt
+			}
+			if state.LastRecoveryAt > current.ChannelAlertLastRecoveryAt {
+				current.ChannelAlertLastRecoveryAt = state.LastRecoveryAt
+			}
+			stateMap[state.ChannelId] = current
+		}
+	}
+
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		item := stateMap[channel.Id]
+		item.Channel = channel
+		settings := dto.ChannelOtherSettings{}
+		if strings.TrimSpace(channel.OtherSettings) != "" {
+			if err := common.UnmarshalJsonStr(channel.OtherSettings, &settings); err != nil {
+				common.SysError(fmt.Sprintf("failed to parse channel alert settings: channel_id=%d err=%v", channel.Id, err))
+			}
+		}
+		item.ChannelAlertEnabled = settings.ChannelAlertEnabled
+		items = append(items, item)
+	}
+	return items
+}
+
 func GetAllChannels(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	channelData := make([]*model.Channel, 0)
@@ -184,7 +240,7 @@ func GetAllChannels(c *gin.Context) {
 		typeCounts[r.Type] = r.Count
 	}
 	common.ApiSuccess(c, gin.H{
-		"items":       channelData,
+		"items":       buildChannelListItems(channelData),
 		"total":       total,
 		"page":        pageInfo.GetPage(),
 		"page_size":   pageInfo.GetPageSize(),
@@ -379,7 +435,7 @@ func SearchChannels(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"items":       pagedData,
+			"items":       buildChannelListItems(pagedData),
 			"total":       total,
 			"type_counts": typeCounts,
 		},

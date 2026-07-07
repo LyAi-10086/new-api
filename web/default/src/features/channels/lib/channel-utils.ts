@@ -649,6 +649,10 @@ export function aggregateChannelsByTag(
         created_time: 0,
         balance_updated_time: 0,
         models: '',
+        channel_alert_enabled: false,
+        channel_alert_active: false,
+        channel_alert_last_alert_at: 0,
+        channel_alert_last_recovery_at: 0,
         children: [],
       } as TagRow
       tagMap.set(tag, tagRow)
@@ -705,6 +709,20 @@ export function aggregateChannelsByTag(
     } else if (tagRow.status === undefined) {
       tagRow.status = channel.status
     }
+
+    // 告警状态按子渠道聚合，避免 tag 行误用第一个渠道的告警状态。
+    tagRow.channel_alert_enabled =
+      tagRow.channel_alert_enabled || channel.channel_alert_enabled
+    tagRow.channel_alert_active =
+      tagRow.channel_alert_active || channel.channel_alert_active
+    tagRow.channel_alert_last_alert_at = Math.max(
+      tagRow.channel_alert_last_alert_at,
+      channel.channel_alert_last_alert_at
+    )
+    tagRow.channel_alert_last_recovery_at = Math.max(
+      tagRow.channel_alert_last_recovery_at,
+      channel.channel_alert_last_recovery_at
+    )
   }
 
   return result
