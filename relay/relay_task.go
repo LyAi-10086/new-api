@@ -201,6 +201,8 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 			}
 		}
 	}
+	info.PriceData.TimePricingBaseQuota = info.PriceData.Quota
+	info.PriceData.Quota = service.ApplyTimePricingToQuota(info, info.PriceData.Quota)
 
 	// 7. 预扣费（仅首次 — 重试时 info.Billing 已存在，跳过）
 	if info.Billing == nil && !info.PriceData.FreeModel {
@@ -246,6 +248,8 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 		// 基于调整后的 ratios 重新计算 quota
 		finalQuota = recalcQuotaFromRatios(info, adjustedRatios)
 		info.PriceData.OtherRatios = adjustedRatios
+		info.PriceData.TimePricingBaseQuota = finalQuota
+		finalQuota = service.ApplyTimePricingToQuota(info, finalQuota)
 		info.PriceData.Quota = finalQuota
 	}
 
@@ -262,6 +266,9 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 func recalcQuotaFromRatios(info *relaycommon.RelayInfo, ratios map[string]float64) int {
 	// 从 PriceData 获取不含 OtherRatios 的基础价格
 	baseQuota := info.PriceData.Quota
+	if info.PriceData.TimePricingBaseQuota > 0 {
+		baseQuota = info.PriceData.TimePricingBaseQuota
+	}
 	// 先除掉原有的 OtherRatios 恢复基础额度
 	for _, ra := range info.PriceData.OtherRatios {
 		if ra != 1.0 && ra > 0 {

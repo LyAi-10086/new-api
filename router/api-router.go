@@ -212,6 +212,19 @@ func SetApiRouter(router *gin.Engine) {
 			sensitiveRoute.GET("/violations/:id", controller.GetSensitiveViolation)
 		}
 
+		timePricingRoute := apiRouter.Group("/time-pricing")
+		{
+			timePricingRoute.GET("/promotions", middleware.UserAuth(), controller.GetTimePricingPromotions)
+			timePricingAdminRoute := timePricingRoute.Group("")
+			timePricingAdminRoute.Use(middleware.RootAuth())
+			{
+				timePricingAdminRoute.GET("/settings", controller.GetTimePricingSettings)
+				timePricingAdminRoute.PUT("/settings", controller.UpdateTimePricingSettings)
+				timePricingAdminRoute.GET("/enabled_models", controller.GetTimePricingEnabledModels)
+				timePricingAdminRoute.GET("/enabled_groups", controller.GetTimePricingEnabledGroups)
+			}
+		}
+
 		affiliateRoute := apiRouter.Group("/affiliate")
 		affiliateRoute.Use(middleware.RootAuth())
 		{

@@ -295,6 +295,15 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case setting.TimePricingSettingOptionKey:
+		err = setting.ValidateTimePricingSettingJSONString(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "分时段计费设置失败: " + err.Error(),
+			})
+			return
+		}
 	case "console_setting.api_info":
 		err = console_setting.ValidateConsoleSettings(option.Value.(string), "ApiInfo")
 		if err != nil {

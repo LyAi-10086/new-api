@@ -59,6 +59,7 @@ import { Route as authUserResetRouteImport } from './routes/(auth)/user/reset'
 import { Route as AuthenticatedSystemSettingsSiteIndexRouteImport } from './routes/_authenticated/system-settings/site/index'
 import { Route as AuthenticatedSystemSettingsSecurityIndexRouteImport } from './routes/_authenticated/system-settings/security/index'
 import { Route as AuthenticatedSystemSettingsSensitiveRiskIndexRouteImport } from './routes/_authenticated/system-settings/sensitive-risk/index'
+import { Route as AuthenticatedSystemSettingsTimePricingIndexRouteImport } from './routes/_authenticated/system-settings/time-pricing/index'
 import { Route as AuthenticatedSystemSettingsOperationsIndexRouteImport } from './routes/_authenticated/system-settings/operations/index'
 import { Route as AuthenticatedSystemSettingsModelsIndexRouteImport } from './routes/_authenticated/system-settings/models/index'
 import { Route as AuthenticatedSystemSettingsContentIndexRouteImport } from './routes/_authenticated/system-settings/content/index'
@@ -340,6 +341,12 @@ const AuthenticatedSystemSettingsSensitiveRiskIndexRoute =
     path: '/sensitive-risk/',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
+const AuthenticatedSystemSettingsTimePricingIndexRoute =
+  AuthenticatedSystemSettingsTimePricingIndexRouteImport.update({
+    id: '/time-pricing/',
+    path: '/time-pricing/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
 const AuthenticatedSystemSettingsOperationsIndexRoute =
   AuthenticatedSystemSettingsOperationsIndexRouteImport.update({
     id: '/operations/',
@@ -473,6 +480,7 @@ export interface FileRoutesByFullPath {
   '/system-settings/operations/': typeof AuthenticatedSystemSettingsOperationsIndexRoute
   '/system-settings/security/': typeof AuthenticatedSystemSettingsSecurityIndexRoute
   '/system-settings/sensitive-risk/': typeof AuthenticatedSystemSettingsSensitiveRiskIndexRoute
+  '/system-settings/time-pricing/': typeof AuthenticatedSystemSettingsTimePricingIndexRoute
   '/system-settings/site/': typeof AuthenticatedSystemSettingsSiteIndexRoute
 }
 export interface FileRoutesByTo {
@@ -534,6 +542,7 @@ export interface FileRoutesByTo {
   '/system-settings/operations': typeof AuthenticatedSystemSettingsOperationsIndexRoute
   '/system-settings/security': typeof AuthenticatedSystemSettingsSecurityIndexRoute
   '/system-settings/sensitive-risk': typeof AuthenticatedSystemSettingsSensitiveRiskIndexRoute
+  '/system-settings/time-pricing': typeof AuthenticatedSystemSettingsTimePricingIndexRoute
   '/system-settings/site': typeof AuthenticatedSystemSettingsSiteIndexRoute
 }
 export interface FileRoutesById {
@@ -599,6 +608,7 @@ export interface FileRoutesById {
   '/_authenticated/system-settings/operations/': typeof AuthenticatedSystemSettingsOperationsIndexRoute
   '/_authenticated/system-settings/security/': typeof AuthenticatedSystemSettingsSecurityIndexRoute
   '/_authenticated/system-settings/sensitive-risk/': typeof AuthenticatedSystemSettingsSensitiveRiskIndexRoute
+  '/_authenticated/system-settings/time-pricing/': typeof AuthenticatedSystemSettingsTimePricingIndexRoute
   '/_authenticated/system-settings/site/': typeof AuthenticatedSystemSettingsSiteIndexRoute
 }
 export interface FileRouteTypes {
@@ -663,6 +673,7 @@ export interface FileRouteTypes {
     | '/system-settings/operations/'
     | '/system-settings/security/'
     | '/system-settings/sensitive-risk/'
+    | '/system-settings/time-pricing/'
     | '/system-settings/site/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -724,6 +735,7 @@ export interface FileRouteTypes {
     | '/system-settings/operations'
     | '/system-settings/security'
     | '/system-settings/sensitive-risk'
+    | '/system-settings/time-pricing'
     | '/system-settings/site'
   id:
     | '__root__'
@@ -787,6 +799,7 @@ export interface FileRouteTypes {
     | '/_authenticated/system-settings/operations/'
     | '/_authenticated/system-settings/security/'
     | '/_authenticated/system-settings/sensitive-risk/'
+    | '/_authenticated/system-settings/time-pricing/'
     | '/_authenticated/system-settings/site/'
   fileRoutesById: FileRoutesById
 }
@@ -1163,6 +1176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsSensitiveRiskIndexRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
+    '/_authenticated/system-settings/time-pricing/': {
+      id: '/_authenticated/system-settings/time-pricing/'
+      path: '/time-pricing'
+      fullPath: '/system-settings/time-pricing/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsTimePricingIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
     '/_authenticated/system-settings/operations/': {
       id: '/_authenticated/system-settings/operations/'
       path: '/operations'
@@ -1292,6 +1312,7 @@ interface AuthenticatedSystemSettingsRouteRouteChildren {
   AuthenticatedSystemSettingsOperationsIndexRoute: typeof AuthenticatedSystemSettingsOperationsIndexRoute
   AuthenticatedSystemSettingsSecurityIndexRoute: typeof AuthenticatedSystemSettingsSecurityIndexRoute
   AuthenticatedSystemSettingsSensitiveRiskIndexRoute: typeof AuthenticatedSystemSettingsSensitiveRiskIndexRoute
+  AuthenticatedSystemSettingsTimePricingIndexRoute: typeof AuthenticatedSystemSettingsTimePricingIndexRoute
   AuthenticatedSystemSettingsSiteIndexRoute: typeof AuthenticatedSystemSettingsSiteIndexRoute
 }
 
@@ -1327,6 +1348,8 @@ const AuthenticatedSystemSettingsRouteRouteChildren: AuthenticatedSystemSettings
       AuthenticatedSystemSettingsSecurityIndexRoute,
     AuthenticatedSystemSettingsSensitiveRiskIndexRoute:
       AuthenticatedSystemSettingsSensitiveRiskIndexRoute,
+    AuthenticatedSystemSettingsTimePricingIndexRoute:
+      AuthenticatedSystemSettingsTimePricingIndexRoute,
     AuthenticatedSystemSettingsSiteIndexRoute:
       AuthenticatedSystemSettingsSiteIndexRoute,
   }

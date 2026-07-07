@@ -24,6 +24,7 @@ type PriceData struct {
 	UsePrice             bool
 	Quota                int // 按次计费的最终额度（MJ / Task）
 	QuotaToPreConsume    int // 按量计费的预消耗额度
+	TimePricingBaseQuota int // 分时段计费前的额度快照，用于任务二次结算
 	GroupRatioInfo       GroupRatioInfo
 }
 

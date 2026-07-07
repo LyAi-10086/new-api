@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,6 +36,9 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 			}
 		}
 	}
+	if timePricingText := TimePricingLogText(info); timePricingText != "" {
+		logContent = fmt.Sprintf("%s，%s", logContent, timePricingText)
+	}
 	other := make(map[string]interface{})
 	other["is_task"] = true
 	other["request_path"] = c.Request.URL.Path
@@ -47,6 +51,7 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 		other["user_group_ratio"] = info.PriceData.GroupRatioInfo.GroupSpecialRatio
 	}
 	appendLogModelNames(info, other)
+	InjectTimePricingLogInfo(other, info)
 	model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{
 		ChannelId: info.ChannelId,
 		ModelName: info.OriginModelName,
@@ -127,6 +132,7 @@ func taskBillingOther(task *model.Task) map[string]interface{} {
 				other[k] = v
 			}
 		}
+		InjectTaskTimePricingLogInfo(other, bc.TimePricing)
 	}
 	props := task.Properties
 	if props.OriginModelName != "" {
@@ -298,7 +304,17 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 
 	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier
 	actualQuota := int(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
+	if bc := task.PrivateData.BillingContext; bc != nil && bc.TimePricing != nil {
+		var snapshot *types.TimePricingSnapshot
+		snapshot, actualQuota = ApplyTimePricingSnapshotToQuota(bc.TimePricing, actualQuota)
+		bc.TimePricing = snapshot
+	}
 
 	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier)
+	if bc := task.PrivateData.BillingContext; bc != nil {
+		if timePricingText := TimePricingLogTextFromSnapshot(bc.TimePricing); timePricingText != "" {
+			reason = reason + "，" + timePricingText
+		}
+	}
 	RecalculateTaskQuota(ctx, task, actualQuota, reason)
 }

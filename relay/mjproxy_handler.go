@@ -201,6 +201,8 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 			Description: err.Error(),
 		}
 	}
+	priceData.TimePricingBaseQuota = priceData.Quota
+	priceData.Quota = service.ApplyTimePricingToQuota(info, priceData.Quota)
 
 	userQuota, err := model.GetUserQuota(info.UserId, false)
 	if err != nil {
@@ -232,7 +234,11 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 
 			tokenName := c.GetString("token_name")
 			logContent := fmt.Sprintf("模型固定价格 %.2f，分组倍率 %.2f，操作 %s", priceData.ModelPrice, priceData.GroupRatioInfo.GroupRatio, constant.MjActionSwapFace)
+			if timePricingText := service.TimePricingLogText(info); timePricingText != "" {
+				logContent += "，" + timePricingText
+			}
 			other := service.GenerateMjOtherInfo(info, priceData)
+			service.InjectTimePricingLogInfo(other, info)
 			model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{
 				ChannelId: info.ChannelId,
 				ModelName: modelName,
@@ -508,6 +514,8 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 			Description: err.Error(),
 		}
 	}
+	priceData.TimePricingBaseQuota = priceData.Quota
+	priceData.Quota = service.ApplyTimePricingToQuota(relayInfo, priceData.Quota)
 
 	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 	if err != nil {
@@ -538,7 +546,11 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 			}
 			tokenName := c.GetString("token_name")
 			logContent := fmt.Sprintf("模型固定价格 %.2f，分组倍率 %.2f，操作 %s，ID %s", priceData.ModelPrice, priceData.GroupRatioInfo.GroupRatio, midjRequest.Action, midjResponse.Result)
+			if timePricingText := service.TimePricingLogText(relayInfo); timePricingText != "" {
+				logContent += "，" + timePricingText
+			}
 			other := service.GenerateMjOtherInfo(relayInfo, priceData)
+			service.InjectTimePricingLogInfo(other, relayInfo)
 			model.RecordConsumeLog(c, relayInfo.UserId, model.RecordConsumeLogParams{
 				ChannelId: relayInfo.ChannelId,
 				ModelName: modelName,

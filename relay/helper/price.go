@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/billing_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -155,12 +156,28 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		CacheCreation1hRatio: cacheCreationRatio1h,
 		QuotaToPreConsume:    preConsumedQuota,
 	}
+	priceData = applyTimePricingForPreConsume(info, priceData, preConsumedQuota)
 
 	if common.DebugEnabled {
 		logger.LogDebug(c, "model_price_helper result: %s", priceData.ToSetting())
 	}
 	info.PriceData = priceData
 	return priceData, nil
+}
+
+func applyTimePricingForPreConsume(info *relaycommon.RelayInfo, priceData types.PriceData, originalQuota int) types.PriceData {
+	if info == nil || originalQuota <= 0 {
+		return priceData
+	}
+	// 预扣阶段冻结命中的分时段规则，结算阶段只复用倍率，不重新按当前时间匹配。
+	snapshot := setting.BuildTimePricingSnapshot(info.UsingGroup, info.OriginModelName, info.StartTime, originalQuota)
+	if snapshot == nil {
+		return priceData
+	}
+	info.TimePricingSnapshot = snapshot
+	priceData.TimePricingBaseQuota = originalQuota
+	priceData.QuotaToPreConsume = snapshot.FinalQuota
+	return priceData
 }
 
 // ModelPriceHelperPerCall 按次/按量计费的 PriceHelper (MJ、Task)
@@ -298,6 +315,7 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 		GroupRatioInfo:    groupRatioInfo,
 		QuotaToPreConsume: preConsumedQuota,
 	}
+	priceData = applyTimePricingForPreConsume(info, priceData, preConsumedQuota)
 
 	logger.LogDebug(c, "model_price_helper_tiered result: model=%s preConsume=%d quotaBeforeGroup=%.2f groupRatio=%.2f tier=%s", info.OriginModelName, preConsumedQuota, quotaBeforeGroup, groupRatioInfo.GroupRatio, trace.MatchedTier)
 

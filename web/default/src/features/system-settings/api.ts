@@ -41,6 +41,11 @@ import type {
   SystemOptionsResponse,
   SystemTaskListResponse,
   SystemTaskResponse,
+  TimePricingEnabledGroupsResponse,
+  TimePricingEnabledModelsResponse,
+  TimePricingPromotionsResponse,
+  TimePricingSettings,
+  TimePricingSettingsResponse,
   UpdateOptionRequest,
   UpdateOptionResponse,
   UpstreamChannelsResponse,
@@ -191,6 +196,42 @@ export async function getSensitiveViolations(
 export async function getSensitiveViolation(id: number) {
   const res = await api.get<SensitiveViolationResponse>(
     `/api/sensitive/violations/${id}`
+  )
+  return res.data
+}
+
+export async function getTimePricingSettings() {
+  const res = await api.get<TimePricingSettingsResponse>(
+    '/api/time-pricing/settings'
+  )
+  return res.data
+}
+
+export async function updateTimePricingSettings(request: TimePricingSettings) {
+  const res = await api.put<TimePricingSettingsResponse>(
+    '/api/time-pricing/settings',
+    request
+  )
+  return res.data
+}
+
+export async function getTimePricingEnabledModels() {
+  const res = await api.get<TimePricingEnabledModelsResponse>(
+    '/api/time-pricing/enabled_models'
+  )
+  return res.data
+}
+
+export async function getTimePricingEnabledGroups() {
+  const res = await api.get<TimePricingEnabledGroupsResponse>(
+    '/api/time-pricing/enabled_groups'
+  )
+  return res.data
+}
+
+export async function getTimePricingPromotions() {
+  const res = await api.get<TimePricingPromotionsResponse>(
+    '/api/time-pricing/promotions'
   )
   return res.data
 }

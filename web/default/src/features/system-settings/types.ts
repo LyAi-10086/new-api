@@ -545,6 +545,82 @@ export type SensitiveViolationResponse = {
   data: SensitiveViolation
 }
 
+export type TimePricingScopeType = 'all' | 'group' | 'model' | 'group_model'
+
+export type TimePricingRuleStatus = 'active' | 'inactive' | 'upcoming' | 'ended' | 'invalid'
+
+export type TimePricingRule = {
+  id: string
+  name: string
+  enabled: boolean
+  timezone: string
+  start_date: string
+  end_date: string
+  daily_start_time: string
+  daily_end_time: string
+  days_of_week: number[]
+  scope_type: TimePricingScopeType
+  groups: string[]
+  models: string[]
+  multiplier: number
+  priority: number
+  stacking: 'exclusive'
+  user_visible: boolean
+  user_title: string
+  user_description: string
+  created_at: number
+}
+
+export type TimePricingSettings = {
+  enabled: boolean
+  user_notice_enabled: boolean
+  preview_days: number
+  version: number
+  rules: TimePricingRule[]
+}
+
+export type TimePricingSettingsResponse = {
+  success: boolean
+  message: string
+  data: TimePricingSettings
+}
+
+export type TimePricingEnabledModelsResponse = {
+  success: boolean
+  message: string
+  data: string[]
+}
+
+export type TimePricingEnabledGroupsResponse = {
+  success: boolean
+  message: string
+  data: string[]
+}
+
+export type TimePricingPromotion = {
+  id: string
+  name: string
+  user_title: string
+  user_description: string
+  start_date: string
+  end_date: string
+  daily_start_time: string
+  daily_end_time: string
+  days_of_week: number[]
+  scope_type: TimePricingScopeType
+  groups?: string[]
+  models?: string[]
+  multiplier: number
+  priority: number
+  status: TimePricingRuleStatus
+}
+
+export type TimePricingPromotionsResponse = {
+  success: boolean
+  message: string
+  data: TimePricingPromotion[]
+}
+
 export type ChannelAlertEvent = {
   id: number
   channel_id: number

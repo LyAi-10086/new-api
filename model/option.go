@@ -172,6 +172,7 @@ func InitOptionMap() {
 	common.OptionMap["SensitiveWords"] = setting.SensitiveWordsToString()
 	common.OptionMap["SensitiveCheckModelScope"] = setting.SensitiveCheckModelScopeToJSONString()
 	common.OptionMap["SensitiveViolationPolicy"] = setting.SensitiveViolationPolicyToJSONString()
+	common.OptionMap[setting.TimePricingSettingOptionKey] = setting.TimePricingSettingToJSONString()
 	common.OptionMap[setting.AffiliateRechargePolicyOptionKey] = setting.AffiliateRechargePolicyToJSONString()
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
@@ -211,6 +212,11 @@ func UpdateOption(key string, value string) error {
 	if err := operation_setting.ValidateChannelAlertOptionPatch(map[string]string{key: value}); err != nil {
 		return err
 	}
+	var err error
+	value, err = prepareOptionValueForSave(key, value)
+	if err != nil {
+		return err
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
@@ -238,8 +244,16 @@ func UpdateOptionsBulk(values map[string]string) error {
 	if err := operation_setting.ValidateChannelAlertOptionPatch(values); err != nil {
 		return err
 	}
+	preparedValues := make(map[string]string, len(values))
+	for k, v := range values {
+		prepared, err := prepareOptionValueForSave(k, v)
+		if err != nil {
+			return err
+		}
+		preparedValues[k] = prepared
+	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		for k, v := range values {
+		for k, v := range preparedValues {
 			option := Option{Key: k}
 			if err := tx.FirstOrCreate(&option, Option{Key: k}).Error; err != nil {
 				return err
@@ -254,12 +268,21 @@ func UpdateOptionsBulk(values map[string]string) error {
 	if err != nil {
 		return err
 	}
-	for k, v := range values {
+	for k, v := range preparedValues {
 		if err := updateOptionMap(k, v); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func prepareOptionValueForSave(key string, value string) (string, error) {
+	switch key {
+	case setting.TimePricingSettingOptionKey:
+		return setting.PrepareTimePricingSettingJSONString(value)
+	default:
+		return value, nil
+	}
 }
 
 func updateOptionMap(key string, value string) (err error) {
@@ -571,6 +594,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateSensitiveCheckModelScopeByJSONString(value)
 	case "SensitiveViolationPolicy":
 		err = setting.UpdateSensitiveViolationPolicyByJSONString(value)
+	case setting.TimePricingSettingOptionKey:
+		err = setting.UpdateTimePricingSettingByJSONString(value)
 	case setting.AffiliateRechargePolicyOptionKey:
 		err = setting.UpdateAffiliateRechargePolicyByJSONString(value)
 	case "AutomaticDisableKeywords":

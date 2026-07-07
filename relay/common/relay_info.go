@@ -162,6 +162,9 @@ type RelayInfo struct {
 	UpstreamRequestBodySize int64
 
 	PriceData types.PriceData
+	// TimePricingSnapshot 固定请求开始时命中的分时段计费规则。
+	// 不能在结算阶段重新按当前时间判断，否则跨时段长请求或异步任务会出现预扣和实扣口径不一致。
+	TimePricingSnapshot *types.TimePricingSnapshot
 
 	// TieredBillingSnapshot is a frozen snapshot of tiered billing rules
 	// captured at pre-consume time. Non-nil only when billing mode is "tiered_expr".

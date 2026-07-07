@@ -63,7 +63,13 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
         {
           title: t('Billing & Payment'),
           icon: CreditCard,
-          items: getBillingSectionNavItems(t),
+          items: [
+            {
+              title: t('Time-based Billing'),
+              url: '/system-settings/time-pricing',
+            },
+            ...getBillingSectionNavItems(t),
+          ],
         },
         {
           title: t('Models & Routing'),
